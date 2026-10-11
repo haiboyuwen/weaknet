@@ -41,6 +41,11 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 .workspace{grid-template-columns:minmax(0,1fr)}.workspace #eventsCard{position:static}.workspace .event{grid-template-columns:minmax(0,1fr) auto;gap:12px}.workspace .event-actions{max-width:180px}.workspace #eventsCard .filters{grid-template-columns:1fr 1.4fr 1fr 1fr}.workspace .kpis{margin:10px 0;grid-template-columns:repeat(4,minmax(0,1fr))}.workspace .kpi{display:flex;align-items:baseline;gap:10px;padding:8px 12px}.workspace .kpi b{font-size:21px}.workspace canvas{height:120px}
 @media(max-width:960px){.workspace #eventsCard .filters{grid-template-columns:1fr 1fr}.workspace .kpi{display:block}}
 @media(max-width:600px){.workspace .event{grid-template-columns:1fr;gap:5px}.workspace .event-actions{max-width:none}.workspace .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace canvas{height:110px}}
+
+/* 趋势默认只显示概况，曲线按需展开。 */
+#trendCard{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,3fr) auto;gap:10px 18px;align-items:center;padding:10px 14px}#trendCard h2{margin:0;font-size:13px}#chartTitle{margin:0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#laneBody{min-width:0}#trendCard .kpis{margin:0;gap:14px}#trendCard .kpi{display:flex;align-items:baseline;gap:5px;padding:0;background:transparent;white-space:nowrap}#trendCard .kpi b{font-size:18px}#trendCard .kpi span{font-size:11px}#toggleChart{font-size:12px;padding:4px 8px}#chartPanel{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px}#tabs{margin-bottom:6px}#tabs:empty{display:none}#trendCard #noLane{padding:0;text-align:left}
+@media(max-width:960px){#trendCard{grid-template-columns:minmax(0,1fr) auto}#laneBody{grid-column:1/-1;grid-row:2}#toggleChart{grid-column:2;grid-row:1}#trendCard .kpi{justify-content:flex-start}#trendCard #noLane{grid-column:1/-1}}
+@media(max-width:600px){#trendCard{gap:6px 10px;padding:9px 12px}#trendCard .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px}#trendCard .kpi b{font-size:16px}}
 </style>
 </head>
 <body>
@@ -63,9 +68,10 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
  </div>
  <div id="monitorTools" class="grid" hidden><div id="monitorDeviceTools"></div><div id="monitorScope"></div></div>
  <section id="view-monitor" class="workspace" aria-label="实时工作台"><div class="stack">
-  <div class="card"><div class="head"><h2>流量趋势</h2><div class="row" id="tabs"></div></div><div class="status" id="chartTitle"></div>
-   <div id="laneBody"><div class="kpis"><div class="kpi"><b id="kDown">—</b><span id="kDownLabel">下行 KB/s</span></div><div class="kpi"><b id="kQueue">—</b><span>整机排队秒数</span></div><div class="kpi"><b id="kConns">—</b><span>整机活动连接</span></div><div class="kpi"><b id="kLoss">—</b><span>整机丢包停顿次数</span></div></div>
-    <canvas id="chart" role="img" aria-label="近三分钟下行速率和整机排队秒数趋势"></canvas><div class="legend"><span><i style="background:var(--accent)"></i><span id="lgDown">下行 KB/s</span></span><span><i style="background:var(--warn)"></i>整机排队秒数（右轴）</span></div></div>
+  <div class="card" id="trendCard"><div><h2>流量趋势</h2><div class="status" id="chartTitle"></div></div>
+   <div id="laneBody"><div class="kpis"><div class="kpi"><b id="kDown">—</b><span id="kDownLabel">下行 KB/s</span></div><div class="kpi"><b id="kQueue">—</b><span>整机排队 s</span></div><div class="kpi"><b id="kConns">—</b><span>整机连接</span></div><div class="kpi"><b id="kLoss">—</b><span>整机丢包停顿</span></div></div></div>
+   <button id="toggleChart" aria-expanded="false" aria-controls="chartPanel">展开曲线</button>
+   <div id="chartPanel" hidden><div class="row" id="tabs"></div><canvas id="chart" role="img" aria-label="近三分钟下行速率和整机排队秒数趋势"></canvas><div class="legend"><span><i style="background:var(--accent)"></i><span id="lgDown">下行 KB/s</span></span><span><i style="background:var(--warn)"></i>整机排队秒数（右轴）</span></div></div>
    <div class="empty" id="noLane">尚未启用弱网。<button class="link" data-view="settings">前往设备与配置</button></div>
   </div>
   <div class="card"><div class="head"><h2>实时流量</h2><span class="hint">近 5 秒 · 手机 / App / 域名</span></div><div class="scroll"><table><thead><tr><th>手机 / App / 域名</th><th class="n">KB/s</th><th class="n">排队 KB</th><th style="width:15%">速率</th></tr></thead><tbody id="hosts"></tbody></table></div><div class="hint">加名单会同时保存该名单的已有草稿。</div></div>
@@ -321,18 +327,22 @@ function draw(h){const c=$("chart"),r=devicePixelRatio||1,W=c.clientWidth,H=c.cl
  const X=i=>pad+(W-2*pad)*(i+n-h.length)/(n-1);
  const line=(idx,max,color)=>{g.strokeStyle=color;g.lineWidth=1.6;g.beginPath();h.forEach((p,i)=>{const y=8+(H-pad-8)*(1-p[idx]/max);i?g.lineTo(X(i),y):g.moveTo(X(i),y)});g.stroke()};
  line(1,maxD,col("--accent"));line(3,maxQ,col("--warn"))}
+let chartExpanded=false;
+$('toggleChart').onclick=()=>{chartExpanded=!chartExpanded;if(displayState)renderLane()};
 function renderLane(){
  const s=displayState,lanes=s.lanes;
  const candidates=fSerial?lanes.filter(l=>l.serial===fSerial):lanes;
  if(!candidates.some(l=>l.serial===selectedLane))selectedLane=candidates[0]?.serial||'';
  html('tabs',!fSerial&&lanes.length>1?lanes.map(l=>`<button class="mini ${l.serial===selectedLane?'on':''}" data-lane="${esc(l.serial)}">${esc(l.name)} · ${esc(l.serial)}</button>`).join(''):'');
  const lane=candidates.find(l=>l.serial===selectedLane);$('laneBody').hidden=!lane;$('noLane').hidden=!!lane;
+ const expanded=!!lane&&chartExpanded;$('chartPanel').hidden=!expanded;$('toggleChart').disabled=!lane;$('toggleChart').setAttribute('aria-expanded',String(expanded));$('toggleChart').textContent=expanded?'收起曲线':'展开曲线';
  $('chartTitle').textContent=lane?`${lane.name} · ${lane.serial} · ${fApp?(fApp==='-'?'未识别 App':fApp):'全部 App'}${paused?' · 已暂停刷新':''}`:'';
+ $('chartTitle').title=$('chartTitle').textContent;
  if(!lane){$('noLane').firstChild.textContent=fSerial?'所选手机未启用弱网。':'尚未启用弱网。';return}
  const stats=lane.stats,ready=!fApp||s._appFilter===fApp;
  const points=ready?stats.history.map((h,i)=>fApp?[h[0],stats.app_history?.[i]?.[1]||0,h[2],h[3]]:h):[];
  $('kDown').textContent=ready?(points.at(-1)?.[1]||0).toFixed(1):'…';$('kDownLabel').textContent=fApp?'该 App 下行 KB/s':'整机下行 KB/s';$('lgDown').textContent=$('kDownLabel').textContent;
- $('kQueue').textContent=stats.queue_down_s.toFixed(1);$('kConns').textContent=stats.conns;$('kLoss').textContent=stats.loss_events;draw(points);
+ $('kQueue').textContent=stats.queue_down_s.toFixed(1);$('kConns').textContent=stats.conns;$('kLoss').textContent=stats.loss_events;if(expanded)draw(points);
 }
 function listActions(item){return `<button class="mini" data-list="blacklist" data-item="${esc(item)}">+黑名单</button><button class="mini" data-list="whitelist" data-item="${esc(item)}">+白名单</button>`}
 function renderHosts(){
