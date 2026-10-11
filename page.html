@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>弱网模拟器</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2129;--quiet:#6b7280;--line:#e3e6ea;--accent:#2f6fde;--warn:#d97706;--good:#16a34a;--bad:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#121417;--card:#1b1e23;--ink:#e6e8eb;--quiet:#9aa1ab;--line:#2c3138;--accent:#5b8ff0}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+main{max-width:1120px;margin:0 auto;padding:20px 16px;display:grid;gap:16px;grid-template-columns:minmax(0,380px) minmax(0,1fr)}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+h1{font-size:18px;margin:0 0 4px}h2{font-size:14px;margin:0 0 12px;color:var(--quiet);font-weight:600}
+.col{display:grid;gap:16px;align-content:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{color:var(--bad);white-space:nowrap;flex-shrink:0}button.danger:hover{border-color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+.field{display:grid;grid-template-columns:96px 1fr 72px 84px;gap:8px;align-items:center;margin:10px 0}
+.field .conv{color:var(--quiet);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.field label{color:var(--quiet)}.field input[type=range]{width:100%}
+.field input[type=number]{width:72px;font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+textarea{width:100%;font:12px ui-monospace,Consolas,monospace;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
+.dev{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
+.dev .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.dev b{font-size:14px}.dev small{color:var(--quiet);font:12px ui-monospace,Consolas,monospace}
+.tag{font-size:12px;border-radius:10px;padding:1px 8px;border:1px solid var(--line);color:var(--quiet);white-space:nowrap}
+.tag.on{border-color:var(--good);color:var(--good)}.tag.warn{border-color:var(--warn);color:var(--warn)}
+.dev .row{margin-top:8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:8px 10px}.kpi b{display:block;font-size:20px}.kpi span{color:var(--quiet);font-size:12px}
+canvas{width:100%;height:180px;display:block}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--quiet);font-weight:500}td.n{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--accent);border-radius:3px;opacity:.6}
+.events{font:12px ui-monospace,Consolas,monospace;color:var(--quiet);max-height:400px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.status{font-size:12px;color:var(--quiet);margin-top:4px}.legend{font-size:12px;color:var(--quiet);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:3px;margin:0 4px 2px 10px;vertical-align:middle}
+.empty{color:var(--quiet);font-size:13px}
+tr.grp td{font-weight:600;border-bottom:1px solid var(--line);padding-top:10px}
+tr.grp td .acts{font-weight:400;margin-left:8px;white-space:nowrap}
+tr.grp td .acts a{color:var(--accent);cursor:pointer;font-size:12px;margin-right:8px}
+tr.sub td:first-child{padding-left:20px;color:var(--quiet)}
+.hint{font-size:12px;color:var(--quiet);margin-top:8px}
+.switch{display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer}.switch input{width:16px;height:16px}
+.scope{font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}.scope.warn{border-color:var(--warn);color:var(--warn)}
+.filters{display:grid;grid-template-columns:1fr 1.4fr 1fr auto;gap:8px;align-items:end}
+@media (max-width:640px){.filters{grid-template-columns:1fr}}
+.filters label{display:grid;gap:4px;font-size:12px;color:var(--quiet)}
+select,input[type=text],.filters input{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);min-width:0;width:100%}
+.chartTitle{font-size:13px;color:var(--quiet);margin-bottom:8px}
+tr.devrow td{font-weight:700;padding-top:12px;border-bottom:2px solid var(--line)}tr.devrow small{color:var(--quiet);font-weight:400}
+tr.grp.in td:first-child{padding-left:14px}tr.grp.in + tr.sub td:first-child,tr.grp.in ~ tr.sub td:first-child{padding-left:28px}
+.scroll{max-height:420px;overflow:auto}
+table.hist{font-size:12px}table.hist td{white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.tag.bad{border-color:var(--bad);color:var(--bad)}
+a.lnk{color:var(--accent);cursor:pointer}
+a.btn{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink);text-decoration:none}a.btn:hover{border-color:var(--accent)}
+</style></head><body><main>
+<section class="col">
+ <div class="card"><div class="head"><div><h1>弱网模拟器</h1><div class="status" id="summary"></div></div>
+  <button class="danger" id="quit" title="恢复所有已启用弱网的手机并退出">退出并恢复手机</button></div></div>
+ <div class="card"><h2>手机（只有启用的手机走弱网，每台独立带宽）</h2><div id="devices"></div>
+  <div class="hint">已经打开的 App 里，长连接不会自动改走代理，启用后点"强制重连"。</div></div>
+ <div class="card"><h2>清空 App 存储（相当于全新安装，登录状态也会清除）</h2>
+  <div class="filters" style="grid-template-columns:1fr 1.4fr">
+   <label>手机<select id="clrSerial"></select></label>
+   <label>包名<input id="clrPkg" list="pkgList" placeholder="com.yalla.yallajalsat"></label>
+  </div>
+  <datalist id="pkgList"></datalist>
+  <div class="row" style="margin-top:8px"><button class="danger" id="clrBtn">清空数据</button><button class="danger" id="clrLaunchBtn">清空数据并启动</button></div>
+  <div class="status" id="clrMsg"></div>
+ </div>
+ <div class="card"><h2>档位（所有启用的手机共用）</h2><div class="presets" id="presets"></div></div>
+ <div class="card"><h2>参数（拖动即时生效）</h2><div id="fields"></div>
+  <h2 style="margin-top:16px">网络状态</h2>
+  <div class="row" id="outage"><button data-o="">正常</button><button data-o="stall">卡死（信号极差）</button><button data-o="reset">断开（断网）</button></div>
+  <h2 style="margin-top:16px">作用范围</h2>
+  <div class="scope" id="scope"></div>
+  <label class="switch"><input type="checkbox" id="blOn"> 只对黑名单生效</label>
+  <h2 style="margin-top:12px">黑名单（开关开启时，只有这些域名走弱网）</h2>
+  <textarea id="blacklist" rows="2" placeholder="域名（含子域名）或 App 包名，例如 com.yalla.yallajalsat,yallajalsat.com"></textarea>
+  <div class="row" style="margin-top:8px"><button id="saveBlacklist">保存黑名单</button></div>
+  <h2 style="margin-top:16px">白名单（永远不走弱网，优先于黑名单）</h2>
+  <textarea id="whitelist" rows="2" placeholder="域名或 App 包名，例如 com.android.vending,googleapis.com"></textarea>
+  <div class="row" style="margin-top:8px"><button id="saveWhitelist">保存白名单</button></div>
+ </div>
+</section>
+<section class="col">
+ <div class="card"><h2>筛选（作用于下面的曲线、实时流量和连接历史）</h2>
+  <div class="filters">
+   <label>手机<select id="fSerial"></select></label>
+   <label>App<select id="fApp"></select></label>
+   <label>域名<input id="fHost" placeholder="包含…"></label>
+   <button id="fClear">清除筛选</button>
+  </div>
+ </div>
+ <div class="card">
+  <div class="tabs" id="tabs"></div>
+  <div class="chartTitle" id="chartTitle"></div>
+  <div id="laneBody">
+   <div class="kpis">
+    <div class="kpi"><b id="kDown">-</b><span id="kDownLabel">下行 KB/s</span></div>
+    <div class="kpi"><b id="kQueue">-</b><span>下行排队（秒）</span></div>
+    <div class="kpi"><b id="kConns">-</b><span>活动连接</span></div>
+    <div class="kpi"><b id="kLoss">-</b><span>丢包停顿次数</span></div>
+   </div>
+   <canvas id="chart"></canvas>
+   <div class="legend"><i style="background:var(--accent)"></i><span id="lgDown">下行 KB/s</span><i style="background:var(--warn)"></i>排队秒数（右轴）</div>
+  </div>
+  <div class="empty" id="noLane">还没有手机启用弱网。在左侧"手机"里点"启用弱网"。</div>
+ </div>
+ <div class="card"><h2>实时流量（近 5 秒，按 手机 / App / 域名）</h2>
+  <table><thead><tr><th>手机 / App / 域名</th><th class="n">KB/s</th><th class="n" title="已到模拟器、还在弱网队列里等着发给手机的数据">排队 KB</th><th style="width:28%"></th></tr></thead><tbody id="hosts"></tbody></table></div>
+ <div class="card"><div class="head"><h2 style="margin:0">连接历史</h2>
+   <div class="row"><label class="switch" style="margin:0"><input type="checkbox" id="onlyActive"> 只看进行中</label>
+    <a class="btn" id="exportCsv" download>导出 CSV</a><button id="clearConns">清空</button></div></div>
+  <div class="status" id="connSum" style="margin:8px 0"></div>
+  <div class="scroll"><table class="hist"><thead><tr><th>开始</th><th>手机</th><th>App</th><th>域名</th><th class="n">下行</th><th class="n">上行</th><th class="n">耗时</th><th>状态</th></tr></thead><tbody id="conns"></tbody></table></div>
+  <div class="hint">保留最近 20 万条，程序退出后清空；需要保存请导出 CSV。点 App 名可快速筛选。</div>
+ </div>
+ <div class="card"><h2>事件（资源 URL / HTTP 接口）</h2>
+  <div class="filters" style="grid-template-columns:1fr 2fr;margin-bottom:8px">
+   <label>类型<select id="evType"><option value="">全部</option><option value="资源">资源请求</option><option value="HTTP">HTTP 接口</option><option value="HTTPS 隧道">HTTPS 隧道</option><option value="system">工具事件</option></select></label>
+   <label>地址 / App / 手机<input id="evSearch" placeholder="URL、文件名或关键词…"></label>
+  </div>
+  <div class="status" id="evCount" style="margin-bottom:8px"></div><div class="events" id="events"></div>
+  <div class="hint">代理记录明文 HTTP 地址；HTTPS 完整路径由 App 的请求日志补充，未输出日志时只能看到隧道域名。App 日志不代表请求一定经过代理或下载成功。查询参数值已脱敏，保留最近 300 条，退出后清空。</div>
+ </div>
+</section>
+</main>
+<script>
+const F=[["down_kbps","下行 kbps",0,30000,50],["up_kbps","上行 kbps",0,10000,50],["delay_ms","单程延迟 ms",0,2000,10],
+["jitter_ms","抖动 ms",0,1000,10],["loss_pct","丢包 %",0,30,0.5],["window_kb","连接窗口 KB",16,1024,16]];
+const $=id=>document.getElementById(id);let state=null,editing=0,sel=null,stopped=false;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const post=(u,b)=>fetch(u,{method:"POST",body:b?JSON.stringify(b):""}).then(()=>refresh());
+const dev=(s,a)=>post(`/api/device/${encodeURIComponent(s)}/${a}`);
+const fmtB=b=>b<1024?b+" B":b<1048576?(b/1024).toFixed(1)+" KB":(b/1048576).toFixed(2)+" MB";
+// 带宽按 kbps 输入，右侧流量按 KB/s（1 KB = 1024 B）显示；在输入框旁给出同一单位的换算值，方便直接对比
+const kbpsToKB=v=>v*1000/8/1024;
+const fmtRate=v=>{v=Number(v);if(!v)return"不限";const kb=kbpsToKB(v);return"= "+(kb<100?kb.toFixed(1):Math.round(kb))+" KB/s"};
+const RATE_KEYS=["down_kbps","up_kbps"];
+const showConv=k=>{if(RATE_KEYS.includes(k))$("c_"+k).textContent=fmtRate($("n_"+k).value)};
+const fmtMs=ms=>ms<1000?Math.round(ms)+" ms":ms<60000?(ms/1000).toFixed(1)+" s":(ms/60000).toFixed(1)+" min";
+const hhmmss=t=>new Date(t).toTimeString().slice(0,8);
+// 筛选条件：手机序列号、App（"-" 表示未识别）、域名关键字
+const store={get(k){try{return localStorage.getItem("wn_"+k)||""}catch(e){return""}},set(k,v){try{localStorage.setItem("wn_"+k,v)}catch(e){}}};
+let fSerial=store.get("serial"),fApp=store.get("app"),fHost=store.get("host"),onlyActive=false;
+$("fHost").value=fHost;
+$("fSerial").onchange=e=>{fSerial=e.target.value;store.set("serial",fSerial);sel=fSerial||sel;refresh();refreshConns()};
+$("fApp").onchange=e=>setApp(e.target.value);
+let ht=null;$("fHost").oninput=e=>{clearTimeout(ht);ht=setTimeout(()=>{fHost=e.target.value.trim();store.set("host",fHost);render();refreshConns()},300)};
+$("fClear").onclick=()=>{fSerial=fApp=fHost="";["serial","app","host"].forEach(k=>store.set(k,""));$("fHost").value="";refresh();refreshConns()};
+$("onlyActive").onchange=e=>{onlyActive=e.target.checked;refreshConns()};
+$("clearConns").onclick=()=>{if(confirm("清空所有连接历史？"))fetch("/api/conns/clear",{method:"POST"}).then(refreshConns)};
+// 清空 App 存储
+$("clrPkg").value=store.get("clr_pkg")||"com.yalla.yallajalsat";
+$("clrPkg").onchange=e=>store.set("clr_pkg",e.target.value.trim());
+const PKG_RE=/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+)+$/;
+async function clearApp(launch){const serial=$("clrSerial").value,pkg=$("clrPkg").value.trim();
+ if(!serial){$("clrMsg").textContent="没有可用的手机";return}
+ if(!PKG_RE.test(pkg)){$("clrMsg").textContent="包名格式不正确";return}
+ if(!confirm(`清空 ${devName(serial)} 上 ${pkg} 的全部数据${launch?"并重新启动":""}？\n登录状态、缓存、配置都会被清除，相当于全新安装。`))return;
+ store.set("clr_pkg",pkg);$("clrMsg").textContent="执行中…";
+ try{const r=await fetch(`/api/device/${encodeURIComponent(serial)}/clear`,{method:"POST",body:JSON.stringify({pkg,launch})});
+  const d=await r.json();$("clrMsg").textContent=d.error?("失败："+d.error):"已提交，结果见下方事件"}catch(e){$("clrMsg").textContent="请求失败"}
+ refresh()}
+$("clrBtn").onclick=()=>clearApp(false);$("clrLaunchBtn").onclick=()=>clearApp(true);
+function renderClear(){
+ if(document.activeElement!==$("clrSerial")){const ready=state.devices.filter(d=>d.state==="device");const cur=$("clrSerial").value||fSerial;
+  $("clrSerial").innerHTML=ready.map(d=>`<option value="${esc(d.serial)}" ${d.serial===cur?"selected":""}>${esc(d.model)} · ${esc(d.serial)}${d.busy?" · 执行中":""}</option>`).join("")||`<option value="">没有可用的手机</option>`}
+ const pkgs=[...new Set(state.apps.map(a=>a.app.replace(/ \(\+\d+\)$/,"")).filter(a=>PKG_RE.test(a)))];
+ const html=pkgs.map(p=>`<option value="${esc(p)}">`).join("");if($("pkgList").innerHTML!==html)$("pkgList").innerHTML=html}
+function setApp(a){fApp=a;store.set("app",a);refresh();refreshConns()}
+$("fields").innerHTML=F.map(([k,l,mn,mx,st])=>`<div class="field"><label>${l}</label><input type="range" id="r_${k}" min="${mn}" max="${mx}" step="${st}"><input type="number" id="n_${k}" min="${mn}" step="${st}"><span class="conv" id="c_${k}"></span></div>`).join("");
+let timer=null;const send=(k,v)=>{editing=Date.now();clearTimeout(timer);timer=setTimeout(()=>post("/api/config",{[k]:Number(v)}),150)};
+F.forEach(([k])=>{$("r_"+k).oninput=e=>{$("n_"+k).value=e.target.value;showConv(k);send(k,e.target.value)};$("n_"+k).onchange=e=>{$("r_"+k).value=e.target.value;showConv(k);send(k,e.target.value)};$("n_"+k).oninput=()=>showConv(k)});
+document.querySelectorAll("#outage button").forEach(b=>b.onclick=()=>post("/api/config",{outage:b.dataset.o}));
+$("saveWhitelist").onclick=()=>post("/api/config",{whitelist:$("whitelist").value});
+$("saveBlacklist").onclick=()=>post("/api/config",{blacklist:$("blacklist").value});
+$("blOn").onchange=e=>post("/api/config",{blacklist_on:e.target.checked});
+$("quit").onclick=async()=>{if(!confirm("恢复所有已启用弱网的手机并退出模拟器？"))return;stopped=true;
+ try{await fetch("/api/quit",{method:"POST"})}catch(e){}
+ document.body.innerHTML='<main style="display:block"><div class="card"><h1>模拟器已退出</h1><div class="status">已启用弱网的手机已恢复为正常网络，可以关闭此页面。</div></div></main>'};
+function draw(h){const c=$("chart"),r=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;if(!W)return;c.width=W*r;c.height=H*r;const g=c.getContext("2d");g.scale(r,r);
+ const cs=getComputedStyle(document.documentElement),col=n=>cs.getPropertyValue(n).trim();g.clearRect(0,0,W,H);
+ const pad=28,n=180,maxD=Math.max(10,...h.map(p=>p[1]))*1.15,maxQ=Math.max(1,...h.map(p=>p[3]))*1.15;
+ g.strokeStyle=col("--line");g.lineWidth=1;for(let i=0;i<=4;i++){const y=8+(H-pad-8)*i/4;g.beginPath();g.moveTo(pad,y);g.lineTo(W-pad,y);g.stroke()}
+ g.fillStyle=col("--quiet");g.font="11px sans-serif";g.fillText(maxD.toFixed(0),2,14);g.fillText(maxQ.toFixed(1)+"s",W-pad+2,14);g.fillText("-3 分钟",pad,H-8);g.fillText("现在",W-pad-24,H-8);
+ const X=i=>pad+(W-2*pad)*(i+n-h.length)/(n-1);
+ const line=(idx,max,color)=>{g.strokeStyle=color;g.lineWidth=1.6;g.beginPath();h.forEach((p,i)=>{const y=8+(H-pad-8)*(1-p[idx]/max);i?g.lineTo(X(i),y):g.moveTo(X(i),y)});g.stroke()};
+ line(1,maxD,col("--accent"));line(3,maxQ,col("--warn"))}
+function renderDevices(){const ds=state.devices;
+ if(!state.adb){$("devices").innerHTML=`<div class="empty">找不到 adb：请安装 Android SDK platform-tools 并加入 PATH，或把 adb 放到本程序同目录</div>`;return}
+ if(!ds.length){$("devices").innerHTML=`<div class="empty">没有检测到手机（USB 连接并允许调试后会自动出现）</div>`;return}
+ $("devices").innerHTML=ds.map(d=>{const ready=d.state==="device",busy=!!d.busy;
+  const tag=d.enabled?`<span class="tag on">弱网中 · 端口 ${d.port} · ${d.relay?"按 App 分类":"直连模式"}</span>`:d.foreign?`<span class="tag warn">已有其他代理 ${esc(d.proxy)}</span>`:ready?`<span class="tag">未启用</span>`:`<span class="tag warn">${esc(d.state)}</span>`;
+  const s=esc(d.serial);
+  return `<div class="dev"><div class="t"><div><b>${esc(d.model)}</b><br><small>${s}</small></div>${tag}</div><div class="row">`+
+   (d.enabled?`<button ${busy?"disabled":""} onclick="dev('${s}','off')">关闭弱网</button><button ${busy?"disabled":""} onclick="dev('${s}','reconnect')">强制重连（关开 WiFi）</button>`
+    :`<button ${busy||!ready?"disabled":""} onclick="dev('${s}','on')">启用弱网</button>`+(d.foreign?`<button ${busy?"disabled":""} onclick="dev('${s}','off')">清除代理</button>`:""))+
+   (busy?`<span class="status">执行中：${esc(d.busy)}…</span>`:"")+`</div></div>`}).join("")}
+const devName=s=>{const d=state.devices.find(d=>d.serial===s);const l=state.lanes.find(l=>l.serial===s);return (d&&d.model)||(l&&l.name)||s};
+function renderFilters(){
+ const serials=[...new Set([...state.devices.map(d=>d.serial),...state.apps.map(a=>a.serial)])];
+ $("fSerial").innerHTML=`<option value="">全部手机</option>`+serials.map(s=>`<option value="${esc(s)}" ${s===fSerial?"selected":""}>${esc(devName(s))} · ${esc(s)}</option>`).join("");
+ const agg={};state.apps.filter(a=>!fSerial||a.serial===fSerial).forEach(a=>{const k=a.app||"-";const x=agg[k]||(agg[k]={down:0,conns:0});x.down+=a.down;x.conns+=a.conns});
+ if(fApp&&!agg[fApp])agg[fApp]={down:0,conns:0};
+ $("fApp").innerHTML=`<option value="">全部 App</option>`+Object.entries(agg).sort((a,b)=>b[1].down-a[1].down)
+  .map(([k,x])=>`<option value="${esc(k)}" ${k===fApp?"selected":""}>${k==="-"?"（未识别）":esc(k)} · ${fmtB(x.down)} · ${x.conns} 次</option>`).join("")}
+function renderLane(){const lanes=state.lanes;
+ if(fSerial&&lanes.find(l=>l.serial===fSerial))sel=fSerial;
+ if(!lanes.find(l=>l.serial===sel))sel=lanes.length?lanes[0].serial:null;
+ $("tabs").innerHTML=!fSerial&&lanes.length>1?lanes.map(l=>`<button class="${l.serial===sel?"on":""}" onclick="sel='${esc(l.serial)}';render()">${esc(l.name)}</button>`).join(""):"";
+ const lane=lanes.find(l=>l.serial===sel);$("laneBody").style.display=lane?"":"none";$("noLane").style.display=lane?"none":"";
+ $("chartTitle").textContent=lane?`${lane.name} · ${lane.serial}`+(fApp?` · ${fApp==="-"?"未识别 App":fApp}`:" · 全部 App"):"";
+ if(!lane)return;const s=lane.stats;
+ const pts=s.history.map((h,i)=>fApp&&s.app_history?[h[0],s.app_history[i]?s.app_history[i][1]:0,h[2],h[3]]:h);
+ const last=pts.at(-1)||[0,0,0,0];
+ $("kDown").textContent=last[1].toFixed(1);$("kDownLabel").textContent=fApp?"该 App 下行 KB/s":"下行 KB/s";$("lgDown").textContent=fApp?"该 App 下行 KB/s":"下行 KB/s";
+ $("kQueue").textContent=s.queue_down_s.toFixed(1);$("kConns").textContent=s.conns;$("kLoss").textContent=s.loss_events;
+ draw(pts)}
+function renderHosts(){
+ const lanes=state.lanes.filter(l=>!fSerial||l.serial===fSerial);
+ const all=[];lanes.forEach(l=>l.stats.hosts.forEach(h=>{if(fApp&&(fApp==="-"?h.app!=="":h.app!==fApp))return;if(fHost&&!h.host.includes(fHost))return;all.push({...h,serial:l.serial,dev:l.name})}));
+ if(!all.length){$("hosts").innerHTML=`<tr><td colspan="4" class="empty">${state.lanes.length?"暂无流量":"还没有手机启用弱网"}</td></tr>`;return}
+ const mx=Math.max(1,...all.map(h=>h.kbs)),sum=a=>Math.round(a.reduce((x,h)=>x+h.kbs,0)*10)/10;
+ const row=h=>`<tr class="sub"><td>${esc(h.host)}</td><td class="n">${h.kbs}</td><td class="n">${h.bypass?'<span class="tag" title="白名单内，或黑名单开启时不在黑名单内">直连</span>':h.queued_kb}</td><td><div class="bar" style="width:${100*h.kbs/mx}%;${h.bypass?'background:var(--quiet)':''}"></div></td></tr>`;
+ const group=(arr,key)=>{const g={};arr.forEach(h=>{const k=key(h);(g[k]=g[k]||[]).push(h)});return Object.entries(g).sort((a,b)=>sum(b[1])-sum(a[1]))};
+ const showDev=lanes.length>1;
+ $("hosts").innerHTML=group(all,h=>h.serial).map(([serial,hs])=>
+  (showDev?`<tr class="devrow"><td>${esc(hs[0].dev)} <small>${esc(serial)}</small></td><td class="n">${sum(hs)}</td><td></td><td></td></tr>`:"")+
+  group(hs,h=>h.app||"-").map(([app,as])=>{
+   const pkg=app.replace(/ \(\+\d+\)$/,""),real=/^[a-zA-Z][\w]*(\.[\w]+)+$/.test(pkg);
+   const acts=`<span class="acts"><a onclick="setApp('${esc(app)}')">只看它</a>`+(real?`<a onclick="addTo('blacklist','${esc(pkg)}')">+黑名单</a><a onclick="addTo('whitelist','${esc(pkg)}')">+白名单</a>`:"")+`</span>`;
+   const q=as.reduce((x,h)=>x+(h.bypass?0:h.queued_kb),0);
+   return `<tr class="grp${showDev?" in":""}"><td>${app==="-"?"（未识别）":esc(app)}${acts}</td><td class="n">${sum(as)}</td><td class="n">${q}</td><td></td></tr>`+as.map(row).join("")}).join("")).join("")}
+function addTo(list,pkg){const cur=state.config[list];if(cur.includes(pkg))return;post("/api/config",{[list]:[...cur,pkg]})}
+function connQuery(){const q=new URLSearchParams();if(fSerial)q.set("serial",fSerial);if(fApp)q.set("app",fApp);if(fHost)q.set("host",fHost);if(onlyActive)q.set("status","active");return q}
+const ST={active:["进行中","on"],ok:["完成",""],failed:["失败","bad"],rejected:["断网拒绝","warn"]};
+async function refreshConns(){if(stopped)return;const q=connQuery();$("exportCsv").href="/api/conns.csv?"+q;q.set("limit","300");
+ let d;try{d=await (await fetch("/api/conns?"+q)).json()}catch(e){return}
+ const s=d.summary;$("connSum").textContent=`共 ${s.count} 个连接（进行中 ${s.active}，失败 ${s.failed}）· 下行 ${fmtB(s.down)} · 上行 ${fmtB(s.up)} · 平均耗时 ${fmtMs(s.avg_ms)} · 走弱网 ${s.shaped} / 直连 ${s.bypassed}`+(s.count>d.rows.length?` · 下表显示最新 ${d.rows.length} 条`:"");
+ const now=Date.now();
+ $("conns").innerHTML=d.rows.map(r=>{const st=ST[r.status]||[r.status,""];const dur=(r.end||now)-r.start;
+  return `<tr><td>${hhmmss(r.start)}</td><td title="${esc(r.serial)}">${esc(r.device)}</td><td><a class="lnk" onclick="setApp('${esc(r.app||"-")}')">${r.app?esc(r.app):"（未识别）"}</a></td><td title="${esc(r.host)}:${esc(r.port)}">${esc(r.host)}</td><td class="n">${fmtB(r.down)}</td><td class="n">${fmtB(r.up)}</td><td class="n">${fmtMs(dur)}${r.end?"":"…"}</td><td><span class="tag ${st[1]}" title="${esc(r.error||"")}">${st[0]}</span> <span class="tag">${r.shaped?"弱网":"直连"}</span></td></tr>`}).join("")||`<tr><td colspan="8" class="empty">没有符合条件的连接</td></tr>`}
+function renderEvents(){if(!state)return;const type=$("evType").value,q=$("evSearch").value.trim().toLowerCase();
+ const rows=state.events.filter(s=>(!type||(type==="system"?!/\[(资源|HTTP|HTTPS 隧道)\]/.test(s):s.includes("["+type+"]")))&&(!q||s.toLowerCase().includes(q)));
+ $("evCount").textContent=`显示 ${rows.length} / ${state.events.length} 条（最新在前）`;
+ $("events").textContent=rows.join("\n")||"没有符合条件的事件"}
+$("evType").onchange=renderEvents;$("evSearch").oninput=renderEvents;
+function render(){const c=state.config;
+ $("presets").innerHTML=state.presets.map(p=>`<button class="${c.preset===p.key?"on":""}" onclick="post('/api/preset/${p.key}')">${p.label}</button>`).join("");
+ if(Date.now()-editing>1500)F.forEach(([k])=>{$("r_"+k).value=c[k];$("n_"+k).value=c[k];showConv(k)});
+ document.querySelectorAll("#outage button").forEach(b=>b.classList.toggle("on",b.dataset.o===c.outage));
+ if(document.activeElement!==$("whitelist"))$("whitelist").value=c.whitelist.join(",");
+ if(document.activeElement!==$("blacklist"))$("blacklist").value=c.blacklist.join(",");
+ $("blOn").checked=c.blacklist_on;
+ const wl=c.whitelist.length?`，白名单 ${c.whitelist.length} 项除外`:"";
+ const sc=$("scope");sc.classList.toggle("warn",c.blacklist_on&&!c.blacklist.length);
+ sc.textContent=!c.blacklist_on?`所有流量都走弱网${wl}`:c.blacklist.length?`只有黑名单的 ${c.blacklist.length} 项走弱网${wl}`:"黑名单开关已开启但名单为空：不会限制任何流量";
+ $("summary").textContent=`下行 ${c.down_kbps?c.down_kbps+" kbps（"+fmtRate(c.down_kbps).slice(2)+"）":"不限"} · 上行 ${c.up_kbps?c.up_kbps+" kbps（"+fmtRate(c.up_kbps).slice(2)+"）":"不限"} · RTT ≈ ${c.delay_ms*2} ms · 抖动 ${c.jitter_ms} ms · 丢包 ${c.loss_pct}%`+(c.outage?` · ${c.outage==="stall"?"卡死中":"已断开"}`:"")+(c.blacklist_on?` · 仅黑名单`:"")+` · ${state.lanes.length} 台手机走弱网`;
+ if(document.activeElement!==$("fSerial")&&document.activeElement!==$("fApp"))renderFilters();
+ renderDevices();renderClear();renderLane();renderHosts();renderEvents()}
+async function refresh(){if(stopped)return;try{state=await (await fetch("/api/state?app="+encodeURIComponent(fApp))).json();render()}catch(e){$("summary").textContent="连接不上模拟器（可能已退出）"}}
+refresh();refreshConns();setInterval(refresh,1000);setInterval(refreshConns,2000);
+</script></body></html>
