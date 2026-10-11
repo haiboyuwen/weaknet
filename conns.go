@@ -36,16 +36,22 @@ type ConnRecord struct {
 	ConnView
 	up, down atomic.Int64
 	mu       sync.Mutex
+	onFinish func(string, string)
 }
 
 func (r *ConnRecord) finish(status, errMsg string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if r.End != 0 {
+		r.mu.Unlock()
 		return
 	}
 	r.End = time.Now().UnixMilli()
 	r.Status, r.Error = status, errMsg
+	callback := r.onFinish
+	r.mu.Unlock()
+	if callback != nil {
+		callback(status, errMsg)
+	}
 }
 
 func (r *ConnRecord) snapshot() ConnView {
@@ -83,6 +89,8 @@ func (s *ConnStore) clear() {
 
 type ConnFilter struct {
 	Serial, App, Host, Status string
+	Shaped                    string // "true" | "false" | ""
+	Since, Until              int64  // 开始时间范围，Unix 毫秒；0 表示不限
 }
 
 func (f ConnFilter) match(r *ConnRecord) bool {
@@ -96,7 +104,13 @@ func (f ConnFilter) match(r *ConnRecord) bool {
 	} else if f.App != "" && r.App != f.App {
 		return false
 	}
-	if f.Host != "" && !strings.Contains(r.Host, f.Host) {
+	if f.Host != "" && !strings.Contains(strings.ToLower(r.Host), strings.ToLower(f.Host)) {
+		return false
+	}
+	if f.Shaped != "" && r.Shaped != (f.Shaped == "true") {
+		return false
+	}
+	if f.Since > 0 && r.Start < f.Since || f.Until > 0 && r.Start > f.Until {
 		return false
 	}
 	return true
@@ -115,18 +129,28 @@ type ConnSummary struct {
 
 // query 返回符合条件的记录（最新在前，最多 limit 条）和全部匹配记录的汇总
 func (s *ConnStore) query(f ConnFilter, limit int) ([]ConnView, ConnSummary) {
+	rows, sum, _ := s.queryPage(f, limit, 0)
+	return rows, sum
+}
+
+// 游标只限制返回的行，汇总始终覆盖全部匹配记录；新增连接不会使后续页重复或跳行。
+func (s *ConnStore) queryPage(f ConnFilter, limit int, before int64) ([]ConnView, ConnSummary, int64) {
 	s.mu.Lock()
 	list := append([]*ConnRecord(nil), s.list...)
 	s.mu.Unlock()
 	var sum ConnSummary
 	var doneMs, done int64
 	out := []ConnView{}
+	var next int64
 	for i := len(list) - 1; i >= 0; i-- {
 		if !f.match(list[i]) {
 			continue
 		}
 		r := list[i].snapshot()
-		if f.Status != "" && r.Status != f.Status {
+		if f.Status == "errors" && r.Status != "failed" && r.Status != "rejected" {
+			continue
+		}
+		if f.Status != "" && f.Status != "errors" && r.Status != f.Status {
 			continue
 		}
 		sum.Count++
@@ -147,14 +171,19 @@ func (s *ConnStore) query(f ConnFilter, limit int) ([]ConnView, ConnSummary) {
 			doneMs += r.End - r.Start
 			done++
 		}
+		if before > 0 && r.ID >= before {
+			continue
+		}
 		if limit <= 0 || len(out) < limit {
 			out = append(out, r)
+		} else if next == 0 {
+			next = out[len(out)-1].ID
 		}
 	}
 	if done > 0 {
 		sum.AvgMs = float64(doneMs) / float64(done)
 	}
-	return out, sum
+	return out, sum, next
 }
 
 // AppSummary 每台手机上每个 App 的累计数据，用于筛选下拉框

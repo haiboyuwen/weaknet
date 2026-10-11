@@ -27,7 +27,10 @@ func newTestApp(t *testing.T, preset string) *App {
 
 func startLane(t *testing.T, app *App, name string) *Lane {
 	t.Helper()
-	ln, _ := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
 	port := ln.Addr().(*net.TCPAddr).Port
 	ln.Close()
 	lane := newLane(app, name, name, port)

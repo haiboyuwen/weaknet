@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -150,10 +151,14 @@ func parseList(v any) []string {
 				items = append(items, s)
 			}
 		}
+	case []string:
+		items = v.([]string)
 	}
 	out := []string{}
+	seen := map[string]bool{}
 	for _, s := range items {
-		if s = strings.TrimSpace(s); s != "" {
+		if s = strings.TrimSpace(s); s != "" && !seen[s] {
+			seen[s] = true
 			out = append(out, s)
 		}
 	}
@@ -261,6 +266,7 @@ type Pipe struct {
 	dst      net.Conn
 	host     string
 	onDead   func()
+	onError  func(error)
 	mu       sync.Mutex
 	cond     *sync.Cond
 	inflight int
@@ -271,8 +277,8 @@ type Pipe struct {
 	counter  *atomic.Int64 // 已投递字节数（写入连接记录）
 }
 
-func newPipe(lane *Lane, link *Link, dst net.Conn, host string, onDead func(), counter *atomic.Int64) *Pipe {
-	p := &Pipe{lane: lane, link: link, dst: dst, host: host, onDead: onDead, counter: counter, dq: make(chan delivery, 1<<14)}
+func newPipe(lane *Lane, link *Link, dst net.Conn, host string, onDead func(), counter *atomic.Int64, onError func(error)) *Pipe {
+	p := &Pipe{lane: lane, link: link, dst: dst, host: host, onDead: onDead, onError: onError, counter: counter, dq: make(chan delivery, 1<<14)}
 	p.cond = sync.NewCond(&p.mu)
 	go p.deliverLoop()
 	return p
@@ -312,6 +318,9 @@ func (p *Pipe) pump(src io.Reader) {
 			p.enqueue(append([]byte(nil), buf[:n]...))
 		}
 		if err != nil {
+			if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) {
+				p.onError(err)
+			}
 			break
 		}
 	}
@@ -365,6 +374,9 @@ func (p *Pipe) deliverLoop() {
 			p.counter.Add(int64(n))
 		}
 		if err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				p.onError(err)
+			}
 			// 对端已关闭（如客户端取消下载）：关掉整个连接，让服务器也停止发送
 			p.markClosed()
 			p.onDead()
@@ -411,6 +423,7 @@ type Lane struct {
 type connPair struct {
 	client, upstream net.Conn
 	pipes            []*Pipe
+	record           *ConnRecord
 }
 
 func newLane(app *App, serial, name string, port int) *Lane {
@@ -464,6 +477,9 @@ func (l *Lane) resetConns(shapedOnly bool) {
 			continue
 		}
 		delete(l.active, c)
+		if c.record != nil {
+			c.record.finish("failed", "网络连接已主动断开")
+		}
 		c.client.Close()
 		c.upstream.Close()
 		for _, p := range c.pipes {
@@ -548,9 +564,22 @@ func (l *Lane) handle(conn net.Conn) {
 	}
 
 	shaped := l.app.shaped(host, pkgs)
-	l.proxyRequestEvent(app, method, target, shaped)
+	eventID := l.proxyRequestEvent(app, method, target, shaped)
 	key := statKey(app, host)
 	rec := l.app.conns.open(l, app, host, port, shaped)
+	rec.onFinish = func(status, message string) {
+		if status == "ok" {
+			if method == "CONNECT" {
+				l.app.finishEvent(eventID, "complete", "隧道连接已结束，无法判定加密请求结果")
+			}
+		} else {
+			l.app.finishEvent(eventID, "failed", message)
+		}
+	}
+	onError := func(err error) {
+		l.app.failEvent(eventID, err)
+		rec.finish("failed", err.Error())
+	}
 	if shaped && l.cfg.Get().Outage == "reset" {
 		rec.finish("rejected", "断开模式")
 		conn.Close()
@@ -560,16 +589,21 @@ func (l *Lane) handle(conn net.Conn) {
 	addr := l.app.resolve(host)
 	upstream, err := net.DialTimeout("tcp", net.JoinHostPort(addr, port), 15*time.Second)
 	if err != nil {
-		rec.finish("failed", err.Error())
+		onError(err)
 		l.event(fmt.Sprintf("连接失败 %s:%s %v", host, port, err))
 		conn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		conn.Close()
 		return
 	}
 	defer rec.finish("ok", "")
+	if method != "CONNECT" {
+		observer := newResponseObserver(l.app, eventID, method)
+		defer observer.close()
+		conn = &observedConn{Conn: conn, observer: observer}
+	}
 
 	if !shaped {
-		l.bypass(conn, br, upstream, key, method, initial, rec)
+		l.bypass(conn, br, upstream, key, method, initial, rec, onError)
 		return
 	}
 
@@ -580,9 +614,9 @@ func (l *Lane) handle(conn net.Conn) {
 			upstream.Close()
 		})
 	}
-	upPipe := newPipe(l, l.up, upstream, key, onDead, &rec.up)
-	downPipe := newPipe(l, l.down, conn, key, onDead, &rec.down)
-	pair := &connPair{conn, upstream, []*Pipe{upPipe, downPipe}}
+	upPipe := newPipe(l, l.up, upstream, key, onDead, &rec.up, onError)
+	downPipe := newPipe(l, l.down, conn, key, onDead, &rec.down, onError)
+	pair := &connPair{client: conn, upstream: upstream, pipes: []*Pipe{upPipe, downPipe}, record: rec}
 	l.mu.Lock()
 	l.active[pair] = struct{}{}
 	l.mu.Unlock()
@@ -590,7 +624,10 @@ func (l *Lane) handle(conn net.Conn) {
 	// 近似 TCP 握手的一个 RTT
 	time.Sleep(time.Duration(l.cfg.Get().DelayMs * 2 * float64(time.Millisecond)))
 	if method == "CONNECT" {
-		conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+		if _, err := conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n")); err != nil {
+			onError(err)
+			onDead()
+		}
 	} else {
 		upPipe.enqueue(initial)
 	}
@@ -617,8 +654,8 @@ func (l *Lane) handle(conn net.Conn) {
 }
 
 // bypass 不走弱网的域名（白名单内，或黑名单开启时不在黑名单内）：直连转发，只统计流量
-func (l *Lane) bypass(conn net.Conn, br *bufio.Reader, upstream net.Conn, key, method string, initial []byte, rec *ConnRecord) {
-	pair := &connPair{client: conn, upstream: upstream}
+func (l *Lane) bypass(conn net.Conn, br *bufio.Reader, upstream net.Conn, key, method string, initial []byte, rec *ConnRecord, onError func(error)) {
+	pair := &connPair{client: conn, upstream: upstream, record: rec}
 	l.mu.Lock()
 	l.active[pair] = struct{}{}
 	l.mu.Unlock()
@@ -628,24 +665,32 @@ func (l *Lane) bypass(conn net.Conn, br *bufio.Reader, upstream net.Conn, key, m
 		l.mu.Unlock()
 	}()
 	if method == "CONNECT" {
-		conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+		if _, err := conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n")); err != nil {
+			onError(err)
+			conn.Close()
+			upstream.Close()
+			return
+		}
 	} else if n, err := upstream.Write(initial); err != nil {
+		onError(err)
 		conn.Close()
 		upstream.Close()
 		return
 	} else {
 		rec.up.Add(int64(n))
 	}
-	done := make(chan struct{}, 2)
+	done := make(chan error, 2)
 	go func() {
-		io.Copy(countingWriter{upstream, func(n int) { rec.up.Add(int64(n)) }}, br)
-		done <- struct{}{}
+		_, err := io.Copy(countingWriter{upstream, func(n int) { rec.up.Add(int64(n)) }}, br)
+		done <- err
 	}()
 	go func() {
-		io.Copy(countingWriter{conn, func(n int) { l.addBypass(key, n); rec.down.Add(int64(n)) }}, upstream)
-		done <- struct{}{}
+		_, err := io.Copy(countingWriter{conn, func(n int) { l.addBypass(key, n); rec.down.Add(int64(n)) }}, upstream)
+		done <- err
 	}()
-	<-done
+	if err := <-done; err != nil {
+		onError(err)
+	}
 	conn.Close()
 	upstream.Close()
 	<-done

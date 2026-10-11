@@ -43,8 +43,10 @@ type App struct {
 
 	conns ConnStore // 历史连接
 
-	evMu   sync.Mutex
-	events []string
+	evMu         sync.Mutex
+	events       []string
+	eventSeq     uint64
+	eventDetails []EventView
 
 	quit chan struct{}
 	once sync.Once
@@ -78,14 +80,23 @@ func newApp(cfg *Config, dnsServer, adb string, basePort int) *App {
 func (a *App) requestQuit() { a.once.Do(func() { close(a.quit) }) }
 
 func (a *App) event(msg string) {
+	a.addEvent(msg, "", "")
+}
+
+func (a *App) addEvent(msg, status, scope string) uint64 {
 	line := time.Now().Format("15:04:05") + " " + msg
 	a.evMu.Lock()
+	a.eventSeq++
+	id := a.eventSeq
 	a.events = append([]string{line}, a.events...)
+	a.eventDetails = append([]EventView{{ID: id, Text: line, Status: status, Scope: scope}}, a.eventDetails...)
 	if len(a.events) > 300 {
 		a.events = a.events[:300]
+		a.eventDetails = a.eventDetails[:300]
 	}
 	a.evMu.Unlock()
 	log.Println(msg)
+	return id
 }
 
 // shaped 该连接是否走弱网：白名单内的永远不走；黑名单开关关闭时其余全部走，开启时只有黑名单内的走。
@@ -342,21 +353,34 @@ func (a *App) disable(serial string) {
 
 // reconnect 关开 WiFi，让已建立的连接断开后改走代理
 func (a *App) reconnect(serial string) {
-	a.runAdb(serial, "shell", "svc", "wifi", "disable")
+	_, disableErr := a.runAdb(serial, "shell", "svc", "wifi", "disable")
 	time.Sleep(3 * time.Second)
-	a.runAdb(serial, "shell", "svc", "wifi", "enable")
+	_, enableErr := a.runAdb(serial, "shell", "svc", "wifi", "enable")
 	a.mu.Lock()
 	name := a.devices[serial].Model
 	a.mu.Unlock()
+	if disableErr != nil || enableErr != nil {
+		a.event(fmt.Sprintf("[%s] 关开 WiFi 失败：关闭 %v；开启 %v", name, disableErr, enableErr))
+		return
+	}
 	a.event(fmt.Sprintf("[%s] 已关开 WiFi", name))
 }
 
-func (a *App) deviceAction(serial, action string) {
+func (a *App) deviceAction(serial, action string) error {
 	fn := map[string]func(string){"on": a.enable, "off": a.disable, "reconnect": a.reconnect}[action]
 	if fn == nil {
-		return
+		return fmt.Errorf("不支持的设备操作：%s", action)
 	}
-	a.runBusy(serial, action, func() { fn(serial) })
+	a.mu.Lock()
+	d, exists := a.devices[serial]
+	a.mu.Unlock()
+	if !exists || d.State != "device" {
+		return fmt.Errorf("手机不可用，请检查 USB 连接和调试授权")
+	}
+	if !a.runBusy(serial, action, func() { fn(serial) }) {
+		return fmt.Errorf("该手机正在执行其他操作")
+	}
+	return nil
 }
 
 // runBusy 同一台手机同一时间只执行一个操作，执行中在控制台显示
@@ -394,9 +418,12 @@ func (a *App) clearAppData(serial, pkg string, launch bool) error {
 	}
 	name := serial
 	a.mu.Lock()
-	if d, ok := a.devices[serial]; ok {
-		name = d.Model
+	d, exists := a.devices[serial]
+	if !exists || d.State != "device" {
+		a.mu.Unlock()
+		return fmt.Errorf("手机不可用，请检查 USB 连接和调试授权")
 	}
+	name = d.Model
 	a.mu.Unlock()
 	ok := a.runBusy(serial, "清空 "+pkg, func() {
 		a.runAdb(serial, "shell", "am", "force-stop", pkg)
@@ -462,13 +489,15 @@ type LaneView struct {
 }
 
 type State struct {
-	Config  Params              `json:"config"`
-	Presets []map[string]string `json:"presets"`
-	Adb     bool                `json:"adb"`
-	Devices []DeviceView        `json:"devices"`
-	Lanes   []LaneView          `json:"lanes"`
-	Apps    []AppSummary        `json:"apps"`
-	Events  []string            `json:"events"`
+	Config       Params              `json:"config"`
+	Presets      []map[string]string `json:"presets"`
+	Adb          bool                `json:"adb"`
+	Devices      []DeviceView        `json:"devices"`
+	Lanes        []LaneView          `json:"lanes"`
+	Apps         []AppSummary        `json:"apps"`
+	Events       []string            `json:"events"`
+	EventSeq     uint64              `json:"event_seq"`
+	EventDetails []EventView         `json:"event_details"`
 }
 
 func (a *App) state(appFilter string) State {
@@ -503,6 +532,8 @@ func (a *App) state(appFilter string) State {
 	}
 	a.evMu.Lock()
 	st.Events = append([]string{}, a.events...)
+	st.EventSeq = a.eventSeq
+	st.EventDetails = append([]EventView{}, a.eventDetails...)
 	a.evMu.Unlock()
 	return st
 }

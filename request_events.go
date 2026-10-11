@@ -1,11 +1,111 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"sync"
 )
+
+type EventView struct {
+	ID     uint64 `json:"id"`
+	Text   string `json:"text"`
+	Status string `json:"status,omitempty"` // active | complete | failed | timeout | unknown
+	Scope  string `json:"scope,omitempty"`  // http | tunnel | log
+	Detail string `json:"detail,omitempty"`
+}
+
+// 更新原事件，不增加日志条数；已经离开最近 300 条的事件不再保留。
+func (a *App) finishEvent(id uint64, status, detail string) {
+	a.evMu.Lock()
+	defer a.evMu.Unlock()
+	for i := range a.eventDetails {
+		e := &a.eventDetails[i]
+		if e.ID == id && e.Status == "active" {
+			e.Status, e.Detail = status, detail
+			return
+		}
+	}
+}
+
+func (a *App) failEvent(id uint64, err error) {
+	status := "failed"
+	var timeout net.Error
+	if errors.As(err, &timeout) && timeout.Timeout() {
+		status = "timeout"
+	}
+	a.finishEvent(id, status, err.Error())
+}
+
+// 只观察已成功写入客户端的首个明文 HTTP 响应。解析器不改动转发的字节，
+// 读完响应后停止观察，后续 keep-alive 数据仍原样通过。
+type responseObserver struct {
+	w    *io.PipeWriter
+	done chan struct{}
+	once sync.Once
+}
+
+func newResponseObserver(a *App, id uint64, method string) *responseObserver {
+	r, w := io.Pipe()
+	o := &responseObserver{w: w, done: make(chan struct{})}
+	go func() {
+		defer close(o.done)
+		defer r.Close()
+		br := bufio.NewReader(r)
+		for {
+			resp, err := http.ReadResponse(br, &http.Request{Method: method})
+			if err != nil {
+				a.finishEvent(id, "failed", "响应不完整或格式错误")
+				return
+			}
+			if resp.StatusCode >= 100 && resp.StatusCode < 200 && resp.StatusCode != 101 {
+				resp.Body.Close()
+				continue
+			}
+			_, err = io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			if err != nil {
+				a.finishEvent(id, "failed", "响应传输中断")
+			} else if resp.StatusCode >= 400 {
+				a.finishEvent(id, "failed", fmt.Sprintf("HTTP %d", resp.StatusCode))
+			} else {
+				a.finishEvent(id, "complete", fmt.Sprintf("HTTP %d · 响应传输完成", resp.StatusCode))
+			}
+			return
+		}
+	}()
+	return o
+}
+
+func (o *responseObserver) feed(data []byte) { _, _ = o.w.Write(data) }
+func (o *responseObserver) close() {
+	o.once.Do(func() { o.w.Close(); <-o.done })
+}
+
+type observedConn struct {
+	net.Conn
+	observer *responseObserver
+}
+
+func (c *observedConn) Write(p []byte) (int, error) {
+	n, err := c.Conn.Write(p)
+	if n > 0 {
+		c.observer.feed(p[:n])
+	}
+	return n, err
+}
+
+func (c *observedConn) Close() error {
+	err := c.Conn.Close()
+	c.observer.close()
+	return err
+}
 
 // displayURL 只保留排查所需的地址：不记录用户信息、fragment 或查询参数值。
 func displayURL(raw string) (string, bool) {
@@ -45,10 +145,10 @@ func requestKind(raw string) string {
 	return "HTTP"
 }
 
-func (l *Lane) requestEvent(source, app, method, raw, detail string) {
+func (l *Lane) requestEvent(source, app, method, raw, detail string) uint64 {
 	address, ok := displayURL(raw)
 	if !ok {
-		return
+		return 0
 	}
 	if app == "" {
 		app = "未识别 App"
@@ -56,10 +156,14 @@ func (l *Lane) requestEvent(source, app, method, raw, detail string) {
 	if method != "" {
 		address = method + " " + address
 	}
-	l.event(fmt.Sprintf("[%s][%s] %s · %s%s", requestKind(raw), source, address, app, detail))
+	status, scope := "unknown", "log"
+	if source == "代理" {
+		status, scope = "active", "http"
+	}
+	return l.app.addEvent(fmt.Sprintf("[%s] [%s][%s] %s · %s%s", l.name, requestKind(raw), source, address, app, detail), status, scope)
 }
 
-func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) {
+func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) uint64 {
 	mode := "直连"
 	if shaped {
 		mode = "弱网"
@@ -68,8 +172,7 @@ func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) {
 		if app == "" {
 			app = "未识别 App"
 		}
-		l.event(fmt.Sprintf("[HTTPS 隧道][代理] CONNECT %s · %s · %s（加密路径不可见）", target, app, mode))
-		return
+		return l.app.addEvent(fmt.Sprintf("[%s] [HTTPS 隧道][代理] CONNECT %s · %s · %s（加密路径不可见）", l.name, target, app, mode), "active", "tunnel")
 	}
-	l.requestEvent("代理", app, method, target, " · "+mode)
+	return l.requestEvent("代理", app, method, target, " · "+mode)
 }

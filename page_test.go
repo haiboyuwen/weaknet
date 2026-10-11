@@ -27,6 +27,16 @@ func TestPageScriptSyntax(t *testing.T) {
 	}
 }
 
+func TestPageBehavior(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("未安装 Node，跳过页面交互回归测试")
+	}
+	if out, err := exec.Command(node, "--test", "tests/page.test.cjs").CombinedOutput(); err != nil {
+		t.Fatalf("页面交互回归失败：%v\n%s", err, out)
+	}
+}
+
 func TestStateKeepsRecentEvents(t *testing.T) {
 	app := newTestApp(t, "unlimited")
 	for i := 0; i < 310; i++ {

@@ -33,6 +33,10 @@ func (a *App) routes() http.Handler {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if err := validateConfigInput(data); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		if a.cfg.Update(data) {
 			a.resetShaped()
 		}
@@ -67,20 +71,31 @@ func (a *App) routes() http.Handler {
 		writeJSON(w, map[string]bool{"ok": true})
 	})
 	mux.HandleFunc("POST /api/device/{serial}/{action}", func(w http.ResponseWriter, r *http.Request) {
-		a.deviceAction(r.PathValue("serial"), r.PathValue("action"))
+		if err := a.deviceAction(r.PathValue("serial"), r.PathValue("action")); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		writeJSON(w, map[string]bool{"ok": true})
 	})
 	connFilter := func(r *http.Request) ConnFilter {
 		q := r.URL.Query()
-		return ConnFilter{Serial: q.Get("serial"), App: q.Get("app"), Host: q.Get("host"), Status: q.Get("status")}
+		since, _ := strconv.ParseInt(q.Get("since"), 10, 64)
+		until, _ := strconv.ParseInt(q.Get("until"), 10, 64)
+		shaped := q.Get("shaped")
+		if shaped != "true" && shaped != "false" {
+			shaped = ""
+		}
+		return ConnFilter{Serial: q.Get("serial"), App: q.Get("app"), Host: q.Get("host"), Status: q.Get("status"),
+			Shaped: shaped, Since: since, Until: until}
 	}
 	mux.HandleFunc("GET /api/conns", func(w http.ResponseWriter, r *http.Request) {
 		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 		if limit <= 0 || limit > 2000 {
 			limit = 300
 		}
-		rows, sum := a.conns.query(connFilter(r), limit)
-		writeJSON(w, map[string]any{"rows": rows, "summary": sum})
+		before, _ := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
+		rows, sum, next := a.conns.queryPage(connFilter(r), limit, before)
+		writeJSON(w, map[string]any{"rows": rows, "summary": sum, "next_before": next})
 	})
 	mux.HandleFunc("GET /api/conns.csv", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -99,6 +114,44 @@ func (a *App) routes() http.Handler {
 		go a.requestQuit()
 	})
 	return mux
+}
+
+// 在修改任何字段前验证整次提交，避免方案部分应用后才发现参数非法。
+func validateConfigInput(data map[string]any) error {
+	for _, key := range []string{"down_kbps", "up_kbps", "delay_ms", "jitter_ms", "loss_pct", "window_kb"} {
+		if raw, exists := data[key]; exists {
+			n, ok := raw.(float64)
+			if !ok || n < 0 || (key == "loss_pct" && n > 100) || (key == "window_kb" && n < 1) {
+				return fmt.Errorf("参数 %s 不合法", key)
+			}
+		}
+	}
+	if raw, exists := data["outage"]; exists {
+		if s, ok := raw.(string); !ok || (s != "" && s != "stall" && s != "reset") {
+			return fmt.Errorf("网络状态不合法")
+		}
+	}
+	if raw, exists := data["blacklist_on"]; exists {
+		if _, ok := raw.(bool); !ok {
+			return fmt.Errorf("黑名单开关必须为布尔值")
+		}
+	}
+	for _, key := range []string{"blacklist", "whitelist"} {
+		if raw, exists := data[key]; exists {
+			switch list := raw.(type) {
+			case string:
+			case []any:
+				for _, item := range list {
+					if _, ok := item.(string); !ok {
+						return fmt.Errorf("%s 名单项必须为字符串", key)
+					}
+				}
+			default:
+				return fmt.Errorf("%s 必须为字符串或字符串数组", key)
+			}
+		}
+	}
+	return nil
 }
 
 func (a *App) serveUI(port int) error {

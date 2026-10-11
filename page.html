@@ -1,190 +1,318 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>弱网模拟器</title>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2129;--quiet:#6b7280;--line:#e3e6ea;--accent:#2f6fde;--warn:#d97706;--good:#16a34a;--bad:#dc2626}
-@media (prefers-color-scheme:dark){:root{--bg:#121417;--card:#1b1e23;--ink:#e6e8eb;--quiet:#9aa1ab;--line:#2c3138;--accent:#5b8ff0}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
-main{max-width:1120px;margin:0 auto;padding:20px 16px;display:grid;gap:16px;grid-template-columns:minmax(0,380px) minmax(0,1fr)}
-@media (max-width:860px){main{grid-template-columns:1fr}}
-h1{font-size:18px;margin:0 0 4px}h2{font-size:14px;margin:0 0 12px;color:var(--quiet);font-weight:600}
-.col{display:grid;gap:16px;align-content:start}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
-.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer}
-button:hover{border-color:var(--accent)}button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-button.danger{color:var(--bad);white-space:nowrap;flex-shrink:0}button.danger:hover{border-color:var(--bad)}
-button:disabled{opacity:.5;cursor:default}
-.field{display:grid;grid-template-columns:96px 1fr 72px 84px;gap:8px;align-items:center;margin:10px 0}
-.field .conv{color:var(--quiet);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.field label{color:var(--quiet)}.field input[type=range]{width:100%}
-.field input[type=number]{width:72px;font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-textarea{width:100%;font:12px ui-monospace,Consolas,monospace;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink)}
-.dev{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
-.dev .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-.dev b{font-size:14px}.dev small{color:var(--quiet);font:12px ui-monospace,Consolas,monospace}
-.tag{font-size:12px;border-radius:10px;padding:1px 8px;border:1px solid var(--line);color:var(--quiet);white-space:nowrap}
-.tag.on{border-color:var(--good);color:var(--good)}.tag.warn{border-color:var(--warn);color:var(--warn)}
-.dev .row{margin-top:8px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-.kpi{border:1px solid var(--line);border-radius:8px;padding:8px 10px}.kpi b{display:block;font-size:20px}.kpi span{color:var(--quiet);font-size:12px}
-canvas{width:100%;height:180px;display:block}
-table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left}
-th{color:var(--quiet);font-weight:500}td.n{text-align:right;font-variant-numeric:tabular-nums}
-.bar{height:6px;background:var(--accent);border-radius:3px;opacity:.6}
-.events{font:12px ui-monospace,Consolas,monospace;color:var(--quiet);max-height:400px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
-.status{font-size:12px;color:var(--quiet);margin-top:4px}.legend{font-size:12px;color:var(--quiet);margin-top:6px}
-.legend i{display:inline-block;width:10px;height:3px;margin:0 4px 2px 10px;vertical-align:middle}
-.empty{color:var(--quiet);font-size:13px}
-tr.grp td{font-weight:600;border-bottom:1px solid var(--line);padding-top:10px}
-tr.grp td .acts{font-weight:400;margin-left:8px;white-space:nowrap}
-tr.grp td .acts a{color:var(--accent);cursor:pointer;font-size:12px;margin-right:8px}
-tr.sub td:first-child{padding-left:20px;color:var(--quiet)}
-.hint{font-size:12px;color:var(--quiet);margin-top:8px}
-.switch{display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer}.switch input{width:16px;height:16px}
-.scope{font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}.scope.warn{border-color:var(--warn);color:var(--warn)}
-.filters{display:grid;grid-template-columns:1fr 1.4fr 1fr auto;gap:8px;align-items:end}
-@media (max-width:640px){.filters{grid-template-columns:1fr}}
-.filters label{display:grid;gap:4px;font-size:12px;color:var(--quiet)}
-select,input[type=text],.filters input{font:inherit;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);min-width:0;width:100%}
-.chartTitle{font-size:13px;color:var(--quiet);margin-bottom:8px}
-tr.devrow td{font-weight:700;padding-top:12px;border-bottom:2px solid var(--line)}tr.devrow small{color:var(--quiet);font-weight:400}
-tr.grp.in td:first-child{padding-left:14px}tr.grp.in + tr.sub td:first-child,tr.grp.in ~ tr.sub td:first-child{padding-left:28px}
-.scroll{max-height:420px;overflow:auto}
-table.hist{font-size:12px}table.hist td{white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
-.tag.bad{border-color:var(--bad);color:var(--bad)}
-a.lnk{color:var(--accent);cursor:pointer}
-a.btn{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink);text-decoration:none}a.btn:hover{border-color:var(--accent)}
-</style></head><body><main>
-<section class="col">
- <div class="card"><div class="head"><div><h1>弱网模拟器</h1><div class="status" id="summary"></div></div>
-  <button class="danger" id="quit" title="恢复所有已启用弱网的手机并退出">退出并恢复手机</button></div></div>
- <div class="card"><h2>手机（只有启用的手机走弱网，每台独立带宽）</h2><div id="devices"></div>
-  <div class="hint">已经打开的 App 里，长连接不会自动改走代理，启用后点"强制重连"。</div></div>
- <div class="card"><h2>清空 App 存储（相当于全新安装，登录状态也会清除）</h2>
-  <div class="filters" style="grid-template-columns:1fr 1.4fr">
-   <label>手机<select id="clrSerial"></select></label>
-   <label>包名<input id="clrPkg" list="pkgList" placeholder="com.yalla.yallajalsat"></label>
+:root{color-scheme:light dark;--bg:#f5f7fb;--card:#fff;--ink:#1d2738;--quiet:#69758a;--line:#e1e7ef;--accent:#2f6fde;--soft:#edf3ff;--warn:#b76a08;--good:#16834b;--bad:#d53343}
+@media(prefers-color-scheme:dark){:root{--bg:#12161e;--card:#1b2230;--ink:#e6edf8;--quiet:#9caac0;--line:#303c50;--accent:#80aaff;--soft:#243654;--warn:#f4b65a;--good:#63cd96;--bad:#ff8792}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+[hidden]{display:none!important}button,input,select,textarea{font:inherit}button,.btn{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);padding:7px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+button:hover,.btn:hover{border-color:var(--accent)}button:disabled{opacity:.45;cursor:default}button.on,button.primary{background:var(--accent);border-color:var(--accent);color:var(--card)}button.danger{color:var(--bad)}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+input,select,textarea{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:7px 9px;min-width:0;width:100%}textarea{font:12px/1.6 ui-monospace,Consolas,monospace;resize:vertical}label{font-size:12px;color:var(--quiet);display:grid;gap:5px}
+h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12px}p{margin:8px 0}.shell{max-width:1320px;margin:auto;padding:0 24px}.top{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}.brand{padding:18px 0 12px;display:flex;justify-content:space-between;gap:18px;align-items:center}.eyebrow{font-size:11px;letter-spacing:.14em;color:var(--accent);font-weight:600}.summary{font-size:12px;color:var(--quiet);margin-top:4px}.nav{display:flex;gap:8px;overflow:auto;padding:0 0 14px}.nav button{white-space:nowrap}.row,.head{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.head{justify-content:space-between;align-items:flex-start}.head h2{margin:0}.stack{display:grid;gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;min-width:0}main{padding-top:20px!important;padding-bottom:40px!important}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+.filters{display:grid;grid-template-columns:1fr 1.4fr 1fr auto;gap:12px;align-items:end}.history-filters{grid-template-columns:1fr 1fr 1.3fr 1.3fr auto}.hint,.status,.empty{font-size:12px;color:var(--quiet)}.hint{margin-top:10px}.status{margin-top:5px}.empty{padding:22px 0;text-align:center}.warn{color:var(--warn)}.bad{color:var(--bad)}.good{color:var(--good)}.banner{padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--soft)}.toolbar{margin:12px 0}.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.kpi{background:var(--bg);border-radius:9px;padding:14px}.kpi b{display:block;font-size:26px;font-variant-numeric:tabular-nums}.kpi span{font-size:12px;color:var(--quiet)}canvas{width:100%;height:220px;display:block}.legend{font-size:12px;color:var(--quiet)}.legend i{display:inline-block;width:14px;height:3px;margin-right:5px;vertical-align:middle}.legend span{margin-right:15px}
+.scroll{overflow:auto;max-height:65vh}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--quiet);font-size:12px;font-weight:500;position:sticky;top:0;background:var(--card);z-index:1}.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.grp td{font-weight:600;background:var(--bg)}.devrow td{font-weight:700}.sub td:first-child{padding-left:20px}.bar{height:5px;border-radius:3px;background:var(--accent);min-width:1px}.host-name{overflow-wrap:anywhere;word-break:break-word}.actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}.mini{font-size:11px;padding:2px 7px;border-radius:5px}.link{padding:0;border:0;background:transparent;color:var(--accent);text-align:left}.tag{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11px;white-space:nowrap}.tag.on{border-color:var(--good);color:var(--good)}.tag.bad{border-color:var(--bad)}.tag.warn{border-color:var(--warn)}.hist{font-size:12px}.hist td{white-space:nowrap}.clip{display:block;max-width:210px;overflow:hidden;text-overflow:ellipsis}.pager{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px}.event{border-top:1px solid var(--line);padding:14px 0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px}.event-text{font:12px/1.8 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.event-actions{display:flex;gap:5px;align-items:flex-start;flex-wrap:wrap;max-width:180px}.events{max-height:65vh;overflow:auto}.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.field{display:grid;grid-template-columns:100px minmax(0,1fr) 88px 82px;gap:10px;align-items:center;margin:14px 0}.field input[type=range]{padding:0;accent-color:var(--accent)}.conv{font-size:11px;color:var(--quiet)}.switch{display:flex;gap:8px;align-items:center;font-size:13px}.switch input{width:16px;height:16px}.scope{font-size:13px;padding:10px;border-radius:8px;background:var(--bg);margin:10px 0}.dev{border:1px solid var(--line);border-radius:9px;padding:14px;margin-top:10px}.dev small{font:12px ui-monospace,monospace;color:var(--quiet)}.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{font-size:12px;background:var(--bg);max-width:100%;overflow-wrap:anywhere}.chip button{border:0;padding:0 4px;background:transparent}.list-head{display:flex;justify-content:space-between;align-items:center;margin:18px 0 7px}.list-head h2{font-size:13px;margin:0}details{margin-top:14px}summary{cursor:pointer;color:var(--quiet)}dialog{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:14px;max-width:720px;width:calc(100% - 32px);max-height:85vh;padding:24px}dialog::backdrop{background:#10182780}.detail{font:12px/1.8 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:20;max-width:calc(100% - 32px);padding:12px 20px;border:1px solid var(--line);border-radius:10px;background:var(--ink);color:var(--card);box-shadow:0 8px 30px #0002}.copy-fallback textarea{min-height:150px}.export-note{margin-left:auto}
+@media(max-width:960px){.grid{grid-template-columns:1fr}.history-filters{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}.filters>button{align-self:end}}
+@media(max-width:600px){.shell{padding:0 12px}.brand{align-items:flex-start}.brand>.row{justify-content:flex-end;max-width:155px}.brand button{font-size:11px;padding:6px 8px}.card{padding:14px}.kpis{grid-template-columns:repeat(2,1fr);gap:8px}.kpi b{font-size:23px}.field{grid-template-columns:88px minmax(0,1fr) 76px;gap:6px}.field .conv{grid-column:3}.event{grid-template-columns:1fr;gap:5px}.event-actions{max-width:none}.filters{gap:8px}.history-filters{grid-template-columns:1fr 1fr}.nav{gap:5px}.nav button{padding:6px 10px}.pager{flex-wrap:wrap}}
+.top{position:static}.commandBar{position:sticky;top:0;z-index:6;background:var(--card);border-bottom:1px solid var(--line)}.commandBar>.shell{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}.commandGroup{display:flex;align-items:center;gap:8px;min-width:0}.commandLabel{font-size:12px;color:var(--quiet);white-space:nowrap}.quickPresets{display:flex;gap:5px;overflow:auto;min-width:0}.quickPresets button,.commandBar button{font-size:12px;padding:5px 9px;white-space:nowrap}.workspace{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:16px;align-items:start}.workspace #eventsCard{position:sticky;top:72px}.workspace .event{grid-template-columns:1fr;gap:6px}.workspace .event-actions{max-width:none}.workspace .events{max-height:60vh}.workspace #eventsCard .filters{grid-template-columns:1fr 1fr}.workspace #eventsCard .head{gap:10px}.workspace #eventsCard .head button{font-size:12px;padding:5px 8px}.workspace canvas{height:130px}.workspace .kpi{padding:10px}.workspace .kpi b{font-size:23px}.workspace .kpis{gap:8px}.workspace .scroll{max-height:42vh}.commandHint{margin-left:auto;font-size:11px;color:var(--quiet)}
+#eventsCard>.filters{grid-template-columns:1fr 1.4fr 1fr 1fr}
+.quickFields{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;flex-basis:100%;width:100%}.quickFields label{font-size:11px}
+@media(max-width:1000px){#eventsCard>.filters{grid-template-columns:1fr 1fr}.workspace{grid-template-columns:1fr}.workspace #eventsCard{position:static}.commandBar>.shell{gap:8px 16px}.commandHint{display:none}}
+@media(max-width:600px){.quickFields{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px}.commandBar>.shell{display:block;padding-top:8px;padding-bottom:8px}.commandGroup+.commandGroup{margin-top:6px}.commandBar .commandSettings{position:absolute;right:12px;top:44px;height:28px}.commandBar button{font-size:11px;padding:4px 8px}.commandLabel{font-size:11px;min-width:24px}.workspace .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.workspace .kpi b{font-size:19px}.workspace .kpi span{font-size:10px}.workspace .event{grid-template-columns:1fr}}
+
+/* 工作台把操作区压成两行，详细说明和名单编辑保留在配置页 / 展开区。 */
+#monitorTools{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px;align-items:stretch}
+#monitorTools .card{padding:12px 14px;height:100%}#monitorTools h2{font-size:13px;margin:0}#monitorTools .head{align-items:center;gap:6px;margin-bottom:6px}#monitorTools .status{font-size:11px;margin:0}#monitorTools label{font-size:11px;gap:3px}#monitorTools input,#monitorTools select{font-size:12px;padding:5px 8px}#monitorTools .filters{gap:8px}#monitorTools .toolbar{margin:8px 0 0}#monitorTools button{font-size:12px;padding:5px 9px}#monitorTools .row{gap:6px}#monitorTools #deviceTools>.hint{display:none}
+#monitorTools #scopeCard{display:flex;flex-direction:column;gap:7px}#monitorTools .scope{margin:0;padding:0;background:transparent;font-size:12px}#monitorTools .switch{display:flex;font-size:12px}#monitorTools details{margin:0}#monitorTools summary{font-size:12px}#monitorTools .list-head{margin:12px 0 6px}#monitorTools .chips{margin:6px 0}#monitorTools .switch input{width:15px;height:15px;padding:0}#globalFilters{padding:12px 16px}#globalFilters .hint{margin-top:6px;font-size:11px}
+@media(max-width:960px){#monitorTools{grid-template-columns:1fr}#monitorTools .card{height:auto}}
+
+.list-editors{display:grid;gap:7px}.list-editor{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:7px;align-items:center}.list-editor>label{font-size:12px;color:var(--ink);white-space:nowrap}.list-editor textarea{height:31px;min-height:31px;resize:none;white-space:pre;overflow:auto;padding:5px 7px;font-size:12px}.list-controls{display:flex;align-items:center;gap:4px;white-space:nowrap}.list-controls button{font-size:11px!important;padding:4px 6px!important;border-radius:5px}.list-menu{position:relative;margin:0!important}.list-menu summary{list-style:none;font-size:11px!important;padding:4px;color:var(--quiet)}.list-menu summary::-webkit-details-marker{display:none}.list-flyout{position:absolute;right:0;top:100%;width:320px;max-width:calc(100vw - 50px);max-height:200px;overflow:auto;z-index:8;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;box-shadow:0 8px 24px #0003}.list-flyout .chips:empty::before{content:'名单为空';color:var(--quiet);font-size:12px}#scopeCard>.head{align-items:center;margin-bottom:8px}#scopeCard .list-editors{margin-top:8px}#monitorTools #scopeCard>.head{margin-bottom:0}#monitorTools #scopeCard .list-editors{margin-top:0}#monitorTools #scopeCard>h2{margin-bottom:0}
+@media(max-width:600px){.list-editor{grid-template-columns:38px minmax(0,1fr) auto;gap:4px}.list-controls{gap:2px}.list-controls button{padding:4px!important}.list-editor>label{font-size:11px}.list-menu summary{padding:3px;font-size:10px!important}}
+
+.device-picker-field{display:grid;gap:5px;font-size:12px;color:var(--quiet);min-width:0}.device-picker{position:relative;margin:0}.device-picker>summary{list-style:none;border:1px solid var(--line);border-radius:7px;background:var(--card);padding:7px 25px 7px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);position:relative}.device-picker>summary::after{content:'▾';position:absolute;right:9px}.device-picker>summary::-webkit-details-marker{display:none}.device-picker-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:8;width:340px;max-width:calc(100vw - 50px);max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--card);box-shadow:0 8px 24px #0003;padding:10px}.device-option{display:flex!important;align-items:center;gap:8px!important;padding:7px 2px;cursor:pointer}.device-option input{width:16px!important;height:16px;padding:0!important;flex:none}.device-option span{min-width:0}.device-option b{font-size:12px;font-weight:500;color:var(--ink)}.device-option small{display:block;font-size:11px;overflow-wrap:anywhere}#monitorTools .device-picker-field{font-size:11px;gap:3px}#monitorTools .device-picker>summary{font-size:12px;padding:5px 24px 5px 8px}.device-picker-menu .row{margin-top:6px}
+
+/* 共用全局控制，页面只保留当前任务的内容。 */
+.top>.shell{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding-top:10px;padding-bottom:10px}.brand{display:contents}.brand>div:first-child{order:1}.brand>.row{order:3;margin-left:auto;max-width:none}.nav{order:2;padding:0;gap:5px}.nav button{font-size:12px;padding:6px 9px}h1{font-size:18px}.summary{font-size:11px;max-width:380px}.card{padding:16px}main.stack,.stack,.grid{gap:12px}h2{font-size:14px}.device-list-row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:9px 0}.device-list-row:last-child{border:0}.device-list-row>input{width:16px;height:16px;padding:0}.device-list-row .hint{margin:0;font-size:11px}.device-list-row b{font-size:12px}.device-list-row .tag{max-width:180px;white-space:normal}.quickFields input[type=range]{padding:0;accent-color:var(--accent)}th,td{padding:8px 7px}.workspace #eventsCard{top:64px}.event{padding:10px 0}.workspace .events{max-height:65vh}details>summary{font-size:12px}
+@media(max-width:1000px){.brand>div:first-child{flex:1}.brand>.row{order:2}.nav{order:3;flex-basis:100%;overflow:auto}.summary{max-width:none}}
+@media(max-width:600px){.card{padding:12px}.top>.shell{gap:8px}.brand>.row{margin-left:0}.brand button{font-size:11px;padding:5px 7px}.summary{font-size:10px}.device-list-row .tag{max-width:110px}}
+
+/* 工作台的三个观察区按单列排列。 */
+.workspace{grid-template-columns:minmax(0,1fr)}.workspace #eventsCard{position:static}.workspace .event{grid-template-columns:minmax(0,1fr) auto;gap:12px}.workspace .event-actions{max-width:180px}.workspace #eventsCard .filters{grid-template-columns:1fr 1.4fr 1fr 1fr}.workspace .kpis{margin:10px 0;grid-template-columns:repeat(4,minmax(0,1fr))}.workspace .kpi{display:flex;align-items:baseline;gap:10px;padding:8px 12px}.workspace .kpi b{font-size:21px}.workspace canvas{height:120px}
+@media(max-width:960px){.workspace #eventsCard .filters{grid-template-columns:1fr 1fr}.workspace .kpi{display:block}}
+@media(max-width:600px){.workspace .event{grid-template-columns:1fr;gap:5px}.workspace .event-actions{max-width:none}.workspace .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.workspace canvas{height:110px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="shell">
+ <div class="brand"><div><h1>弱网模拟器</h1><div class="summary" id="summary">正在连接模拟器…</div></div>
+ <div class="row"><button id="pause">暂停自动刷新</button><button class="danger" id="quit">退出并恢复手机</button></div></div>
+ <nav class="nav" aria-label="控制台页面"><button data-view="monitor">实时工作台</button><button data-view="history">连接历史</button><button data-view="events">请求事件</button><button data-view="settings">设备与配置</button></nav>
+</div></header>
+<div class="commandBar" aria-label="全局网络控制"><div class="shell">
+ <div class="commandGroup"><span class="commandLabel">档位</span><div class="quickPresets" id="quickPresets"></div></div>
+ <div class="commandGroup"><span class="commandLabel">状态</span><div class="row" id="quickOutage"><button data-o="">正常</button><button data-o="stall">卡死</button><button data-o="reset">断开</button></div></div>
+ <button class="commandSettings" id="toggleParams" aria-expanded="false" aria-controls="quickFields">调参数</button><span class="commandHint" id="quickSummary">所有启用手机即时生效</span><div class="quickFields" id="quickFields" hidden></div>
+</div></div>
+<main class="shell stack">
+ <div id="connection" class="banner bad" role="status" hidden></div>
+ <div id="pauseInfo" class="banner" role="status" hidden></div>
+ <div class="card" id="globalFilters">
+  <div class="filters"><label>手机<select id="fSerial"></select></label><label>App<select id="fApp"></select></label><label>域名包含<input id="fHost" placeholder="例如 api.example.com"></label><button id="fClear">清除筛选</button></div>
+  <div class="hint">筛选监控与历史 · 域名仅筛选表格 · 请求事件独立筛选</div>
+ </div>
+ <div id="monitorTools" class="grid" hidden><div id="monitorDeviceTools"></div><div id="monitorScope"></div></div>
+ <section id="view-monitor" class="workspace" aria-label="实时工作台"><div class="stack">
+  <div class="card"><div class="head"><h2>流量趋势</h2><div class="row" id="tabs"></div></div><div class="status" id="chartTitle"></div>
+   <div id="laneBody"><div class="kpis"><div class="kpi"><b id="kDown">—</b><span id="kDownLabel">下行 KB/s</span></div><div class="kpi"><b id="kQueue">—</b><span>整机排队秒数</span></div><div class="kpi"><b id="kConns">—</b><span>整机活动连接</span></div><div class="kpi"><b id="kLoss">—</b><span>整机丢包停顿次数</span></div></div>
+    <canvas id="chart" role="img" aria-label="近三分钟下行速率和整机排队秒数趋势"></canvas><div class="legend"><span><i style="background:var(--accent)"></i><span id="lgDown">下行 KB/s</span></span><span><i style="background:var(--warn)"></i>整机排队秒数（右轴）</span></div></div>
+   <div class="empty" id="noLane">尚未启用弱网。<button class="link" data-view="settings">前往设备与配置</button></div>
   </div>
-  <datalist id="pkgList"></datalist>
-  <div class="row" style="margin-top:8px"><button class="danger" id="clrBtn">清空数据</button><button class="danger" id="clrLaunchBtn">清空数据并启动</button></div>
-  <div class="status" id="clrMsg"></div>
- </div>
- <div class="card"><h2>档位（所有启用的手机共用）</h2><div class="presets" id="presets"></div></div>
- <div class="card"><h2>参数（拖动即时生效）</h2><div id="fields"></div>
-  <h2 style="margin-top:16px">网络状态</h2>
-  <div class="row" id="outage"><button data-o="">正常</button><button data-o="stall">卡死（信号极差）</button><button data-o="reset">断开（断网）</button></div>
-  <h2 style="margin-top:16px">作用范围</h2>
-  <div class="scope" id="scope"></div>
-  <label class="switch"><input type="checkbox" id="blOn"> 只对黑名单生效</label>
-  <h2 style="margin-top:12px">黑名单（开关开启时，只有这些域名走弱网）</h2>
-  <textarea id="blacklist" rows="2" placeholder="域名（含子域名）或 App 包名，例如 com.yalla.yallajalsat,yallajalsat.com"></textarea>
-  <div class="row" style="margin-top:8px"><button id="saveBlacklist">保存黑名单</button></div>
-  <h2 style="margin-top:16px">白名单（永远不走弱网，优先于黑名单）</h2>
-  <textarea id="whitelist" rows="2" placeholder="域名或 App 包名，例如 com.android.vending,googleapis.com"></textarea>
-  <div class="row" style="margin-top:8px"><button id="saveWhitelist">保存白名单</button></div>
- </div>
-</section>
-<section class="col">
- <div class="card"><h2>筛选（作用于下面的曲线、实时流量和连接历史）</h2>
-  <div class="filters">
-   <label>手机<select id="fSerial"></select></label>
-   <label>App<select id="fApp"></select></label>
-   <label>域名<input id="fHost" placeholder="包含…"></label>
-   <button id="fClear">清除筛选</button>
+  <div class="card"><div class="head"><h2>实时流量</h2><span class="hint">近 5 秒 · 手机 / App / 域名</span></div><div class="scroll"><table><thead><tr><th>手机 / App / 域名</th><th class="n">KB/s</th><th class="n">排队 KB</th><th style="width:15%">速率</th></tr></thead><tbody id="hosts"></tbody></table></div><div class="hint">加名单会同时保存该名单的已有草稿。</div></div>
+ </div><div class="stack" id="monitorEvents"></div></section>
+ <section id="view-history" class="stack" aria-label="连接历史" hidden>
+  <div class="card"><div class="head"><h2>连接历史</h2><div class="row"><button id="copyConns">复制本页</button><a class="btn" id="exportCsv" download>导出筛选结果 CSV</a><button class="danger" id="clearConns">清空全部历史</button></div></div>
+   <div class="filters history-filters toolbar"><label>状态<select id="hStatus"><option value="">全部状态</option><option value="active">进行中</option><option value="errors">全部失败</option><option value="failed">连接失败</option><option value="rejected">断网拒绝</option><option value="ok">完成</option></select></label><label>网络路径<select id="hShaped"><option value="">全部路径</option><option value="true">走弱网</option><option value="false">直连</option></select></label><label>开始时间 · 从<input type="datetime-local" id="hSince"></label><label>开始时间 · 至<input type="datetime-local" id="hUntil"></label><button id="hClear">重置条件</button></div>
+   <div class="status" id="connSum" role="status"></div><div class="status bad" id="connError" role="status"></div>
+   <div class="scroll"><table class="hist"><thead><tr><th>开始</th><th>手机</th><th>App</th><th>域名</th><th class="n">下行</th><th class="n">上行</th><th class="n">耗时</th><th>状态 / 详情</th></tr></thead><tbody id="conns"></tbody></table></div>
+   <div class="pager"><div class="row"><button id="hLatest">回到最新</button><button id="hPrev">上一页</button><button id="hNext">下一页</button></div><span class="status" id="hPage"></span></div>
+   <details><summary>历史与导出说明 · 每页 100 条</summary><div class="hint">翻页后暂停历史自动更新，避免新连接挤动记录。保留最近 20 万条，退出后清空；CSV 导出全部匹配记录。</div></details>
   </div>
- </div>
- <div class="card">
-  <div class="tabs" id="tabs"></div>
-  <div class="chartTitle" id="chartTitle"></div>
-  <div id="laneBody">
-   <div class="kpis">
-    <div class="kpi"><b id="kDown">-</b><span id="kDownLabel">下行 KB/s</span></div>
-    <div class="kpi"><b id="kQueue">-</b><span>下行排队（秒）</span></div>
-    <div class="kpi"><b id="kConns">-</b><span>活动连接</span></div>
-    <div class="kpi"><b id="kLoss">-</b><span>丢包停顿次数</span></div>
-   </div>
-   <canvas id="chart"></canvas>
-   <div class="legend"><i style="background:var(--accent)"></i><span id="lgDown">下行 KB/s</span><i style="background:var(--warn)"></i>排队秒数（右轴）</div>
+ </section>
+ <section id="view-events" class="stack" aria-label="请求事件" hidden><div id="eventsSoloSlot">
+  <div class="card" id="eventsCard"><div class="head"><h2>请求事件</h2><div class="row"><button id="copyEvents">复制筛选结果</button><button id="exportEvents">导出 TXT</button><button class="mini" id="evClear">清除筛选</button></div></div>
+   <div class="filters toolbar"><label>类型<select id="evType"><option value="">全部事件</option><option value="资源">资源请求</option><option value="HTTP">HTTP 接口</option><option value="HTTPS 隧道">HTTPS 隧道</option><option value="system">工具事件</option></select></label><label>地址 / App / 手机<input id="evSearch" placeholder="URL、文件名、App 或手机关键词…"></label><label>来源<select id="evSource"><option value="">全部来源</option><option value="代理">代理</option><option value="App 日志">App 日志</option></select></label><label>状态<select id="evStatus"><option value="">全部状态</option><option value="active">请求中 / 连接中</option><option value="complete">请求完成 / 隧道结束</option><option value="errors">全部失败（含超时）</option><option value="failed">请求失败</option><option value="timeout">请求失败（超时）</option><option value="unknown">结果未知</option></select></label></div>
+   <div class="status" id="evCount" role="status"></div><div class="events" id="events"></div>
+   <details><summary>状态与地址说明 · 最近 300 条</summary><div class="hint">URL 查询参数已脱敏。明文 HTTP 完成表示首个响应传输结束；HTTPS 标签仅表示隧道状态，App 地址日志显示结果未知。卡死模式保持请求中，实际发生超时才标记超时。</div></details>
   </div>
-  <div class="empty" id="noLane">还没有手机启用弱网。在左侧"手机"里点"启用弱网"。</div>
- </div>
- <div class="card"><h2>实时流量（近 5 秒，按 手机 / App / 域名）</h2>
-  <table><thead><tr><th>手机 / App / 域名</th><th class="n">KB/s</th><th class="n" title="已到模拟器、还在弱网队列里等着发给手机的数据">排队 KB</th><th style="width:28%"></th></tr></thead><tbody id="hosts"></tbody></table></div>
- <div class="card"><div class="head"><h2 style="margin:0">连接历史</h2>
-   <div class="row"><label class="switch" style="margin:0"><input type="checkbox" id="onlyActive"> 只看进行中</label>
-    <a class="btn" id="exportCsv" download>导出 CSV</a><button id="clearConns">清空</button></div></div>
-  <div class="status" id="connSum" style="margin:8px 0"></div>
-  <div class="scroll"><table class="hist"><thead><tr><th>开始</th><th>手机</th><th>App</th><th>域名</th><th class="n">下行</th><th class="n">上行</th><th class="n">耗时</th><th>状态</th></tr></thead><tbody id="conns"></tbody></table></div>
-  <div class="hint">保留最近 20 万条，程序退出后清空；需要保存请导出 CSV。点 App 名可快速筛选。</div>
- </div>
- <div class="card"><h2>事件（资源 URL / HTTP 接口）</h2>
-  <div class="filters" style="grid-template-columns:1fr 2fr;margin-bottom:8px">
-   <label>类型<select id="evType"><option value="">全部</option><option value="资源">资源请求</option><option value="HTTP">HTTP 接口</option><option value="HTTPS 隧道">HTTPS 隧道</option><option value="system">工具事件</option></select></label>
-   <label>地址 / App / 手机<input id="evSearch" placeholder="URL、文件名或关键词…"></label>
+ </div></section>
+ <section id="view-settings" class="grid" aria-label="设备与配置" hidden>
+  <div class="stack">
+   <div class="card"><h2>手机</h2><div id="devices"></div><div class="hint">勾选手机后，在设备快捷操作中统一执行；每台手机独立带宽，参数共用。</div></div>
+   <div class="card"><h2>测试方案</h2><label>已保存的方案<select id="profiles"><option value="">选择方案…</option></select></label><div class="row toolbar"><button id="applyProfile">应用</button><button id="saveProfile">保存当前配置</button><button id="deleteProfile">删除</button></div><div class="row"><button id="exportProfiles">导出 JSON</button><button id="importProfiles">导入 JSON</button><input id="profileFile" type="file" accept=".json,application/json" hidden></div><div class="hint">方案保存在当前浏览器，包含参数、网络状态和黑白名单。应用前会展示范围并确认；导出可迁移到其他电脑。</div></div>
   </div>
-  <div class="status" id="evCount" style="margin-bottom:8px"></div><div class="events" id="events"></div>
-  <div class="hint">代理记录明文 HTTP 地址；HTTPS 完整路径由 App 的请求日志补充，未输出日志时只能看到隧道域名。App 日志不代表请求一定经过代理或下载成功。查询参数值已脱敏，保留最近 300 条，退出后清空。</div>
- </div>
-</section>
+  <div class="stack">
+   <div id="settingsTools"><div class="card" id="deviceTools"><div class="head"><h2>设备快捷操作</h2><span class="status" id="toolDeviceStatus"></span></div><div class="filters" style="grid-template-columns:1fr 1.5fr"><div class="device-picker-field"><span>操作手机</span><details class="device-picker" id="toolDevicePicker"><summary id="toolSelection">选择手机…</summary><div class="device-picker-menu"><div id="toolDeviceOptions"></div><div class="row toolbar"><button data-tool-select="all">全选空闲手机</button><button data-tool-select="none">取消全选</button></div></div></details></div><label>操作 App 包名<input id="clrPkg" list="pkgList" placeholder="com.example.app"></label></div><datalist id="pkgList"></datalist><div class="row toolbar"><button class="danger" id="clrLaunchBtn">清空并启动</button><button class="danger" id="clrBtn">清空数据</button><span class="row" id="toolDeviceActions"></span></div><div class="status" id="clrMsg" role="status"></div><div class="hint">操作仅针对勾选手机，共用一组按钮；清空会清除该 App 的登录状态、缓存和配置，执行前会确认。</div></div></div>
+   <div id="settingsScope"><div class="card" id="scopeCard"><div class="head"><h2>作用范围</h2><label class="switch"><input type="checkbox" id="blOn">只对黑名单生效</label></div><div class="scope" id="scope"></div><div class="list-editors" id="scopeDetails">
+<div class="list-editor"><label for="blacklist">黑名单</label><textarea id="blacklist" rows="1" aria-label="黑名单域名或 App 包名" placeholder="api.example.com,com.example.app" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveBlacklist" aria-label="保存黑名单">保存</button><button id="resetBlacklist" aria-label="撤销黑名单草稿">撤销</button><button id="copyBlacklist" aria-label="复制黑名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="blacklistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="blacklistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
+<div class="list-editor"><label for="whitelist">白名单</label><textarea id="whitelist" rows="1" aria-label="白名单域名或 App 包名" placeholder="googleapis.com,com.android.vending" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveWhitelist" aria-label="保存白名单">保存</button><button id="resetWhitelist" aria-label="撤销白名单草稿">撤销</button><button id="copyWhitelist" aria-label="复制白名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="whitelistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="whitelistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
+</div><div class="hint warn" id="listConflict" hidden></div></div></div>
+  </div>
+ </section>
 </main>
+<div id="toast" class="toast" role="status" hidden></div>
+<dialog id="detailDialog"><div class="head"><h2>连接详情</h2><button data-close="detailDialog" aria-label="关闭详情">关闭</button></div><pre class="detail" id="detailText"></pre><button id="copyDetail">复制完整详情</button></dialog>
+<dialog id="copyDialog" class="copy-fallback"><div class="head"><h2>手动复制</h2><button data-close="copyDialog">关闭</button></div><p class="hint">浏览器未允许自动复制，内容已选中，请按 Ctrl+C / ⌘C。</p><textarea id="copyText" readonly aria-label="待复制内容"></textarea></dialog>
+<dialog id="actionDialog"><form method="dialog"><h2 id="actionTitle">确认操作</h2><p id="actionMessage" style="white-space:pre-wrap;overflow-wrap:anywhere"></p><label id="actionName" hidden>方案名称<input id="actionInput" maxlength="80" autocomplete="off"></label><div class="row toolbar" style="justify-content:flex-end"><button id="actionCancel" type="button">取消</button><button class="primary" value="ok">确认</button></div></form></dialog>
 <script>
-const F=[["down_kbps","下行 kbps",0,30000,50],["up_kbps","上行 kbps",0,10000,50],["delay_ms","单程延迟 ms",0,2000,10],
-["jitter_ms","抖动 ms",0,1000,10],["loss_pct","丢包 %",0,30,0.5],["window_kb","连接窗口 KB",16,1024,16]];
-const $=id=>document.getElementById(id);let state=null,editing=0,sel=null,stopped=false;
-const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const post=(u,b)=>fetch(u,{method:"POST",body:b?JSON.stringify(b):""}).then(()=>refresh());
-const dev=(s,a)=>post(`/api/device/${encodeURIComponent(s)}/${a}`);
-const fmtB=b=>b<1024?b+" B":b<1048576?(b/1024).toFixed(1)+" KB":(b/1048576).toFixed(2)+" MB";
-// 带宽按 kbps 输入，右侧流量按 KB/s（1 KB = 1024 B）显示；在输入框旁给出同一单位的换算值，方便直接对比
-const kbpsToKB=v=>v*1000/8/1024;
-const fmtRate=v=>{v=Number(v);if(!v)return"不限";const kb=kbpsToKB(v);return"= "+(kb<100?kb.toFixed(1):Math.round(kb))+" KB/s"};
-const RATE_KEYS=["down_kbps","up_kbps"];
-const showConv=k=>{if(RATE_KEYS.includes(k))$("c_"+k).textContent=fmtRate($("n_"+k).value)};
-const fmtMs=ms=>ms<1000?Math.round(ms)+" ms":ms<60000?(ms/1000).toFixed(1)+" s":(ms/60000).toFixed(1)+" min";
-const hhmmss=t=>new Date(t).toTimeString().slice(0,8);
-// 筛选条件：手机序列号、App（"-" 表示未识别）、域名关键字
-const store={get(k){try{return localStorage.getItem("wn_"+k)||""}catch(e){return""}},set(k,v){try{localStorage.setItem("wn_"+k,v)}catch(e){}}};
-let fSerial=store.get("serial"),fApp=store.get("app"),fHost=store.get("host"),onlyActive=false;
-$("fHost").value=fHost;
-$("fSerial").onchange=e=>{fSerial=e.target.value;store.set("serial",fSerial);sel=fSerial||sel;refresh();refreshConns()};
-$("fApp").onchange=e=>setApp(e.target.value);
-let ht=null;$("fHost").oninput=e=>{clearTimeout(ht);ht=setTimeout(()=>{fHost=e.target.value.trim();store.set("host",fHost);render();refreshConns()},300)};
-$("fClear").onclick=()=>{fSerial=fApp=fHost="";["serial","app","host"].forEach(k=>store.set(k,""));$("fHost").value="";refresh();refreshConns()};
-$("onlyActive").onchange=e=>{onlyActive=e.target.checked;refreshConns()};
-$("clearConns").onclick=()=>{if(confirm("清空所有连接历史？"))fetch("/api/conns/clear",{method:"POST"}).then(refreshConns)};
-// 清空 App 存储
-$("clrPkg").value=store.get("clr_pkg")||"com.yalla.yallajalsat";
-$("clrPkg").onchange=e=>store.set("clr_pkg",e.target.value.trim());
-const PKG_RE=/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+)+$/;
-async function clearApp(launch){const serial=$("clrSerial").value,pkg=$("clrPkg").value.trim();
- if(!serial){$("clrMsg").textContent="没有可用的手机";return}
- if(!PKG_RE.test(pkg)){$("clrMsg").textContent="包名格式不正确";return}
- if(!confirm(`清空 ${devName(serial)} 上 ${pkg} 的全部数据${launch?"并重新启动":""}？\n登录状态、缓存、配置都会被清除，相当于全新安装。`))return;
- store.set("clr_pkg",pkg);$("clrMsg").textContent="执行中…";
- try{const r=await fetch(`/api/device/${encodeURIComponent(serial)}/clear`,{method:"POST",body:JSON.stringify({pkg,launch})});
-  const d=await r.json();$("clrMsg").textContent=d.error?("失败："+d.error):"已提交，结果见下方事件"}catch(e){$("clrMsg").textContent="请求失败"}
- refresh()}
-$("clrBtn").onclick=()=>clearApp(false);$("clrLaunchBtn").onclick=()=>clearApp(true);
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+ get(key){try{return localStorage.getItem('wn_'+key)||''}catch{return ''}},
+ set(key,value){try{localStorage.setItem('wn_'+key,value);return true}catch{return false}},
+ remove(key){try{localStorage.removeItem('wn_'+key)}catch{}}
+};
+const F = [['down_kbps','下行 kbps',0,30000,50],['up_kbps','上行 kbps',0,10000,50],['delay_ms','单程延迟 ms',0,2000,10],['jitter_ms','抖动 ms',0,1000,10],['loss_pct','丢包 %',0,100,.5],['window_kb','连接窗口 KB',1,1024,1]];
+const PKG_RE = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+)+$/;
+const ST = {active:['进行中','on'],ok:['完成',''],failed:['失败','bad'],rejected:['断网拒绝','warn']};
+let state=null, displayState=null, stopped=false, paused=false, pauseSeq=0, selectedLane=store.get('lane');
+let view=['monitor','history','events','settings'].includes(store.get('view'))?store.get('view'):'monitor';
+let fSerial=store.get('serial'), fApp=store.get('app'), fHost=store.get('host');
+let manualDisplay=false, stateBusy=false, configEpoch=0, configChain=Promise.resolve(), pending={}, paramTimer=null;
+const savingKeys=new Map(), latestParams=new Map(), dirty={blacklist:false,whitelist:false};
+let listsReady=false, toastTimer=null, connVersion=0, connBusy=false, connData=null, pageCursors=[0], nextCursor=0;
+const fmtB=b=>b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';
+const fmtMs=ms=>ms<1000?Math.round(ms)+' ms':ms<60000?(ms/1000).toFixed(1)+' s':(ms/60000).toFixed(1)+' min';
+const hhmmss=t=>new Date(t).toLocaleTimeString('zh-CN',{hour12:false});
+const fmtRate=v=>!Number(v)?'不限':'≈ '+(Number(v)*1000/8/1024).toFixed(1)+' KB/s';
+const copyButton=(value,label='复制')=>`<button class="mini" data-copy="${esc(value)}">${label}</button>`;
+function html(id,value){const node=$(id);if(node.innerHTML!==value)node.innerHTML=value}
+function toast(message,error=false){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').hidden=false;$('toast').setAttribute('role',error?'alert':'status');toastTimer=setTimeout(()=>$('toast').hidden=true,error?6500:2600)}
+async function request(url,body){
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
+ try{
+  const response=await fetch(url,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal,cache:'no-store'});
+  const text=await response.text();let data;try{data=JSON.parse(text)}catch{data=null}
+  if(!response.ok)throw new Error(data?.error||text.trim()||`HTTP ${response.status}`);
+  if(data===null)throw new Error('服务返回了无效数据');return data;
+ }catch(error){if(error.name==='AbortError')throw new Error('请求超时，请检查模拟器连接');throw error}
+ finally{clearTimeout(timeout)}
+}
+async function copyText(text){
+ if(!text){toast('没有可复制的内容');return}
+ try{await navigator.clipboard.writeText(text);toast('已复制');return}catch{}
+ $('copyText').value=text;$('copyDialog').showModal();$('copyText').focus();$('copyText').select();
+}
+let actionResolve=null;
+function ask(message,withName=false){
+ if(actionResolve)return Promise.resolve(null);
+ $('actionTitle').textContent=withName?'保存测试方案':'确认操作';$('actionMessage').textContent=message;
+ $('actionName').hidden=!withName;$('actionInput').required=withName;$('actionInput').value='';$('actionDialog').returnValue='';
+ return new Promise(resolve=>{actionResolve=value=>resolve(value);$('actionDialog').showModal();if(withName)$('actionInput').focus()});
+}
+$('actionCancel').onclick=()=>$('actionDialog').close('cancel');
+$('actionDialog').addEventListener('close',()=>{const resolve=actionResolve;actionResolve=null;if(resolve)resolve($('actionDialog').returnValue==='ok'?($('actionName').hidden?true:$('actionInput').value.trim()):null)});
+const confirmAction=async message=>(await ask(message))===true;
+const askName=message=>ask(message,true);
+function download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function hasSelection(id){const selection=window.getSelection();return selection&&!selection.isCollapsed&&$(id).contains(selection.anchorNode)}
+function selectView(next){
+ if(!['monitor','history','events','settings'].includes(next))return;
+ view=next;store.set('view',view);
+ if(view==='monitor'||view==='events')$(view==='monitor'?'monitorEvents':'eventsSoloSlot').appendChild($('eventsCard'));
+ $(view==='monitor'?'monitorDeviceTools':'settingsTools').appendChild($('deviceTools'));$('monitorTools').hidden=view!=='monitor';
+ $(view==='monitor'?'monitorScope':'settingsScope').appendChild($('scopeCard'));
+ document.querySelectorAll('[id^="view-"]').forEach(node=>node.hidden=node.id!=='view-'+view);
+ document.querySelectorAll('nav [data-view]').forEach(button=>{button.classList.toggle('on',button.dataset.view===view);button.setAttribute('aria-current',button.dataset.view===view?'page':'false')});
+ $('globalFilters').hidden=!['monitor','history'].includes(view);
+ if(state)render();if(view==='history')refreshConns(true);
+}
+function devName(serial,s=state){return s?.devices.find(d=>d.serial===serial)?.model||s?.lanes.find(l=>l.serial===serial)?.name||serial}
+function renderFilters(){
+ const s=displayState||state,serials=[...new Set([...s.devices.map(d=>d.serial),...s.apps.map(a=>a.serial),...(fSerial?[fSerial]:[])])];
+ if(document.activeElement!==$('fSerial'))html('fSerial','<option value="">全部手机</option>'+serials.map(serial=>`<option value="${esc(serial)}" ${serial===fSerial?'selected':''}>${esc(devName(serial,s))} · ${esc(serial)}</option>`).join(''));
+ const agg=new Map();s.apps.filter(a=>!fSerial||a.serial===fSerial).forEach(a=>{const key=a.app||'-';agg.set(key,(agg.get(key)||0)+a.down)});if(fApp&&!agg.has(fApp))agg.set(fApp,0);
+ if(document.activeElement!==$('fApp'))html('fApp','<option value="">全部 App</option>'+[...agg].sort((a,b)=>b[1]-a[1]).map(([app,bytes])=>`<option value="${esc(app)}" ${app===fApp?'selected':''}>${esc(app==='-'?'（未识别）':app)} · ${fmtB(bytes)}</option>`).join(''));
+}
+function filtersChanged(){
+ for(const [key,value] of [['serial',fSerial],['app',fApp],['host',fHost]])store.set(key,value);
+ manualDisplay=true;connVersion++;pageCursors=[0];connData=null;html('conns','');$('connSum').textContent='正在加载…';
+ if(state)render();refresh();if(view==='history')refreshConns(true);
+}
+$('fHost').value=fHost;
+$('fSerial').onchange=e=>{fSerial=e.target.value;selectedLane=fSerial||selectedLane;filtersChanged()};
+$('fApp').onchange=e=>{fApp=e.target.value;filtersChanged()};
+let hostTimer; $('fHost').oninput=()=>{clearTimeout(hostTimer);hostTimer=setTimeout(()=>{fHost=$('fHost').value.trim();filtersChanged()},250)};
+$('fClear').onclick=()=>{clearTimeout(hostTimer);fSerial=fApp=fHost='';$('fHost').value='';filtersChanged()};
+function setApp(app){fApp=app;filtersChanged()}
+function showConv(key){if(key==='down_kbps'||key==='up_kbps')$('c_'+key).textContent=fmtRate($('q_'+key).value)}
+
+function queueConfig(body,url='/api/config'){
+ const task=configChain.then(async()=>{configEpoch++;try{const config=await request(url,body);if(state)state.config=config;return config}finally{configEpoch++}});
+ configChain=task.catch(()=>{});return task;
+}
+function setConfigStatus(message,error=false,retry=false){
+ const content=`<span class="${error?'bad':''}">${esc(message)}</span>${retry?' <button class="mini" data-retry>重试</button>':''}`;
+ html('quickConfigStatus',content);$('toggleParams').classList.toggle('bad',error);$('toggleParams').title=message;
+}
+function send(key,value){
+ const number=Number(value),min=F.find(f=>f[0]===key)[2];
+ if(value===''||!Number.isFinite(number)||number<min||(key==='loss_pct'&&number>100)){setConfigStatus('请输入有效参数：丢包 0–100%，其他参数不小于标示下限',true);return}
+ pending[key]=number;latestParams.set(key,number);setConfigStatus('待保存…');clearTimeout(paramTimer);paramTimer=setTimeout(flushParams,180);
+}
+async function flushParams(){
+ clearTimeout(paramTimer);if(!Object.keys(pending).length){await configChain;return !Object.keys(pending).length}
+ const batch=pending;pending={};Object.keys(batch).forEach(key=>savingKeys.set(key,(savingKeys.get(key)||0)+1));setConfigStatus('保存中…');
+ try{await queueConfig(batch);setConfigStatus('已保存');return true}
+ catch(error){for(const key of Object.keys(batch))if(latestParams.get(key)===batch[key]&&!(key in pending))pending[key]=batch[key];setConfigStatus('保存失败：'+error.message,true,true);return false}
+ finally{Object.keys(batch).forEach(key=>savingKeys.set(key,savingKeys.get(key)-1));if(state)renderConfig()}
+}
+html('quickFields',F.map(([key,label,min,max,step])=>`<label>${label}<input type="number" aria-label="快捷${label}" id="q_${key}" min="${min}" ${key==='loss_pct'?'max="100"':''} step="any"><input aria-label="${label}滑块" type="range" id="r_${key}" min="${min}" max="${max}" step="${step}"><span class="conv" id="c_${key}"></span></label>`).join('')+'<div class="status" id="quickConfigStatus" role="status" style="grid-column:1/-1"></div>');
+$('toggleParams').onclick=()=>{const open=$('quickFields').hidden;$('quickFields').hidden=!open;$('toggleParams').textContent=open?'收起参数':'调参数';$('toggleParams').setAttribute('aria-expanded',String(open))};
+F.forEach(([key])=>{
+ $('q_'+key).onchange=e=>{$('r_'+key).value=e.target.value;showConv(key);send(key,e.target.value)};
+ $('r_'+key).oninput=e=>{$('q_'+key).value=e.target.value;showConv(key);send(key,e.target.value)};
+});
+
+async function changeConfig(body,message='已保存'){
+ if(!await flushParams()){toast('参数尚未保存，请重试后再操作',true);return false}
+ try{await queueConfig(body);toast(message);renderConfig();refresh();return true}catch(error){toast('保存失败：'+error.message,true);refresh();return false}
+}
+function listItems(text){return [...new Set(text.split(/[,，\s]+/).map(s=>s.trim()).filter(Boolean))]}
+function draftChanged(list){dirty[list]=true;store.set('draft_'+list,JSON.stringify({value:$(list).value}));renderLists()}
+function renderLists(){
+ for(const list of ['blacklist','whitelist']){
+  if(!dirty[list]&&document.activeElement!==$(list))$(list).value=state.config[list].join(',');
+  const items=listItems($(list).value);$(list+'Status').textContent=`${items.length} 项${dirty[list]?' · 草稿':''}`;$(list+'Status').classList.toggle('warn',dirty[list]);
+  html(list+'Chips',items.map(item=>`<span class="tag chip">${esc(item)}<button aria-label="删除 ${esc(item)}" data-remove-list="${list}" data-item="${esc(item)}">×</button></span>`).join(''));
+  $('save'+(list==='blacklist'?'Blacklist':'Whitelist')).disabled=!dirty[list];
+  $('reset'+(list==='blacklist'?'Blacklist':'Whitelist')).disabled=!dirty[list];
+ }
+ const white=listItems($('whitelist').value),black=listItems($('blacklist').value);
+ const conflicts=black.filter(item=>white.some(w=>item===w||item.endsWith('.'+w)));
+ $('listConflict').textContent=conflicts.length?`白名单优先：${conflicts.join('、')} 将被豁免弱网（含白名单子域名）。`:'逗号、空格或换行分隔，保存时自动去重。删除标签后需保存。';
+ $('listConflict').classList.toggle('warn',!!conflicts.length);$('listConflict').hidden=!conflicts.length;
+}
+async function saveList(list){
+ const raw=$(list).value,items=listItems(raw);if(!await changeConfig({[list]:items},'名单已保存'))return false;
+ if($(list).value===raw){dirty[list]=false;store.remove('draft_'+list);$(list).value=items.join(',')}
+ renderLists();return true;
+}
+async function addTo(list,item){
+ if(!state)return;const items=listItems($(list).value);if(items.includes(item)){toast('名单中已存在该项');return}
+ $(list).value=[...items,item].join(',');draftChanged(list);await saveList(list);
+}
+for(const list of ['blacklist','whitelist']){
+ const name=list==='blacklist'?'Blacklist':'Whitelist';$(list).oninput=()=>draftChanged(list);
+ $('save'+name).onclick=()=>saveList(list);
+ $('reset'+name).onclick=()=>{dirty[list]=false;store.remove('draft_'+list);renderLists()};
+ $('copy'+name).onclick=()=>copyText(listItems($(list).value).join('\n'));
+}
+$('blOn').onchange=async e=>{const on=e.target.checked;e.target.disabled=true;await changeConfig({blacklist_on:on});e.target.disabled=false;renderConfig()};
+function renderConfig(){
+ const c=state.config;
+ if(!listsReady){for(const list of ['blacklist','whitelist']){try{const draft=JSON.parse(store.get('draft_'+list));if(draft&&typeof draft.value==='string'){$(list).value=draft.value;dirty[list]=true}}catch{}}listsReady=true}
+ html('quickPresets',state.presets.map(p=>`<button data-preset="${esc(p.key)}" class="${c.preset===p.key?'on':''}">${esc(p.label)}</button>`).join(''));
+ F.forEach(([key,,min,max])=>{if(key in pending||savingKeys.get(key)||document.activeElement===$('r_'+key)||document.activeElement===$('q_'+key))return;$('r_'+key).max=Math.max(max,c[key]);$('r_'+key).value=c[key];$('q_'+key).value=c[key];showConv(key)});
+ document.querySelectorAll('#quickOutage button').forEach(b=>b.classList.toggle('on',b.dataset.o===c.outage));$('blOn').checked=c.blacklist_on;
+ $('quickSummary').textContent=`${state.lanes.length} 台 · ↓ ${c.down_kbps||'不限'} / ↑ ${c.up_kbps||'不限'} kbps · ${c.blacklist_on?'仅黑名单':'全部流量'}`;
+ const exception=c.whitelist.length?`，白名单 ${c.whitelist.length} 项除外`:'';
+ $('scope').textContent=!c.blacklist_on?`所有代理流量走弱网${exception}`:c.blacklist.length?`仅黑名单 ${c.blacklist.length} 项走弱网${exception}`:'黑名单为空：当前不会限制任何流量';
+ $('scope').classList.toggle('warn',c.blacklist_on&&!c.blacklist.length);renderLists();
+}
+function renderDevices(){
+ if(!state.adb){html('devices','<div class="empty">找不到 adb，请安装 platform-tools，或把 adb 放到程序同目录。</div>');return}
+ if(!state.devices.length){html('devices','<div class="empty">未检测到手机。请通过 USB 连接并允许调试。</div>');return}
+ html('devices',state.devices.map(d=>{
+  const badge=d.busy?`<span class="tag warn">执行中：${esc(d.busy)}</span>`:d.enabled?`<span class="tag on">弱网 · ${d.port} · ${d.relay?'按 App':'直连'}</span>`:d.foreign?`<span class="tag warn">其他代理</span>`:`<span class="tag">${d.state==='device'?'未启用':esc(d.state)}</span>`;
+  return `<div class="device-list-row"><input type="checkbox" aria-label="选择 ${esc(d.model)} ${esc(d.serial)}" data-tool-serial="${esc(d.serial)}" ${toolSerials.has(d.serial)?'checked':''} ${d.state!=='device'&&!toolSerials.has(d.serial)?'disabled':''}><div><b>${esc(d.model)}</b><div class="hint">${esc(d.serial)} ${copyButton(d.serial,'复制')}</div></div>${badge}</div>`;
+ }).join(''));
+}
+
+$('clrPkg').value=store.get('clr_pkg')||'com.yalla.yallajalsat';$('clrPkg').onchange=e=>store.set('clr_pkg',e.target.value.trim());
+let toolSerials=new Set(),toolSelectionReady=false,toolSubmitting=false;
+try{const raw=store.get('tool_serials'),saved=raw?JSON.parse(raw):null;if(Array.isArray(saved)&&saved.every(s=>typeof s==='string')){toolSerials=new Set(saved);toolSelectionReady=true}else if(store.get('clr_serial')){toolSerials.add(store.get('clr_serial'));toolSelectionReady=true}}catch{}
+function storeToolSelection(){toolSelectionReady=true;store.set('tool_serials',JSON.stringify([...toolSerials]));renderClear();renderDevices()}
+function toolTargets(){
+ const serials=[...toolSerials];if(!serials.length){toast('请勾选要操作的手机',true);return null}
+ if(serials.some(serial=>{const d=state.devices.find(d=>d.serial===serial);return !d||d.state!=='device'||d.busy})){toast('选中手机有忙碌或不可用设备，请等待或取消勾选后重试',true);return null}
+ return serials;
+}
 function renderClear(){
- if(document.activeElement!==$("clrSerial")){const ready=state.devices.filter(d=>d.state==="device");const cur=$("clrSerial").value||fSerial;
-  $("clrSerial").innerHTML=ready.map(d=>`<option value="${esc(d.serial)}" ${d.serial===cur?"selected":""}>${esc(d.model)} · ${esc(d.serial)}${d.busy?" · 执行中":""}</option>`).join("")||`<option value="">没有可用的手机</option>`}
- const pkgs=[...new Set(state.apps.map(a=>a.app.replace(/ \(\+\d+\)$/,"")).filter(a=>PKG_RE.test(a)))];
- const html=pkgs.map(p=>`<option value="${esc(p)}">`).join("");if($("pkgList").innerHTML!==html)$("pkgList").innerHTML=html}
-function setApp(a){fApp=a;store.set("app",a);refresh();refreshConns()}
-$("fields").innerHTML=F.map(([k,l,mn,mx,st])=>`<div class="field"><label>${l}</label><input type="range" id="r_${k}" min="${mn}" max="${mx}" step="${st}"><input type="number" id="n_${k}" min="${mn}" step="${st}"><span class="conv" id="c_${k}"></span></div>`).join("");
-let timer=null;const send=(k,v)=>{editing=Date.now();clearTimeout(timer);timer=setTimeout(()=>post("/api/config",{[k]:Number(v)}),150)};
-F.forEach(([k])=>{$("r_"+k).oninput=e=>{$("n_"+k).value=e.target.value;showConv(k);send(k,e.target.value)};$("n_"+k).onchange=e=>{$("r_"+k).value=e.target.value;showConv(k);send(k,e.target.value)};$("n_"+k).oninput=()=>showConv(k)});
-document.querySelectorAll("#outage button").forEach(b=>b.onclick=()=>post("/api/config",{outage:b.dataset.o}));
-$("saveWhitelist").onclick=()=>post("/api/config",{whitelist:$("whitelist").value});
-$("saveBlacklist").onclick=()=>post("/api/config",{blacklist:$("blacklist").value});
-$("blOn").onchange=e=>post("/api/config",{blacklist_on:e.target.checked});
-$("quit").onclick=async()=>{if(!confirm("恢复所有已启用弱网的手机并退出模拟器？"))return;stopped=true;
- try{await fetch("/api/quit",{method:"POST"})}catch(e){}
- document.body.innerHTML='<main style="display:block"><div class="card"><h1>模拟器已退出</h1><div class="status">已启用弱网的手机已恢复为正常网络，可以关闭此页面。</div></div></main>'};
+ const ready=state.devices.filter(d=>d.state==='device');
+ if(!toolSelectionReady&&ready.length){toolSerials.add(ready.some(d=>d.serial===fSerial)?fSerial:ready[0].serial);toolSelectionReady=true}
+ const selected=[...toolSerials].map(serial=>state.devices.find(d=>d.serial===serial)||{serial,model:serial,state:'offline'});
+ const busy=selected.filter(d=>d.busy).length,offline=selected.filter(d=>d.state!=='device').length,enabled=selected.filter(d=>d.enabled).length;
+ const disabled=!selected.length||!!busy||!!offline||toolSubmitting;
+ $('clrBtn').disabled=$('clrLaunchBtn').disabled=disabled;
+ $('toolSelection').textContent=selected.length===1?`${selected[0].model} · ${selected[0].serial}`:selected.length?`已选 ${selected.length} 台手机`:'勾选要操作的手机';
+ $('toolSelection').title=selected.map(d=>`${d.model} · ${d.serial}`).join('\n');
+ const choices=[...state.devices,...selected.filter(d=>!state.devices.some(item=>item.serial===d.serial))];
+ html('toolDeviceOptions',choices.map(d=>`<label class="device-option"><input type="checkbox" data-tool-serial="${esc(d.serial)}" ${toolSerials.has(d.serial)?'checked':''} ${d.state!=='device'&&!toolSerials.has(d.serial)?'disabled':''}><span><b>${esc(d.model)}</b><small>${esc(d.serial)}${d.busy?' · 执行中：'+esc(d.busy):d.state!=='device'?' · 不可用':d.enabled?' · 弱网已启用':' · 未启用'}</small></span></label>`).join('')||'<div class="empty">没有检测到手机</div>');
+ const action=(name,label)=>`<button data-tool-action="${name}" ${disabled?'disabled':''}>${label}</button>`;
+ html('toolDeviceActions',(enabled<selected.length||!selected.length?action('on','启用弱网'):'')+(enabled?action('off','关闭弱网'):'')+action('reconnect','重启 Wi-Fi')+(selected.some(d=>d.foreign)?action('off','清除代理'):''));
+ $('toolDeviceStatus').textContent=toolSubmitting?'正在提交…':selected.length?`已选 ${selected.length} 台 · ${enabled} 台弱网${busy?' · '+busy+' 台忙碌':''}${offline?' · '+offline+' 台不可用':''}`:'未选择手机';
+ const pkgs=[...new Set(state.apps.map(a=>a.app.replace(/ \(\+\d+\)$/,'')).filter(a=>PKG_RE.test(a)))];html('pkgList',pkgs.map(p=>`<option value="${esc(p)}">`).join(''));
+}
+async function submitToolAction(action,body,serials){
+ if(toolSubmitting)return;toolSubmitting=true;renderClear();
+ try{
+  const results=await Promise.allSettled(serials.map(serial=>request(`/api/device/${encodeURIComponent(serial)}/${action}`,body)));
+  const failed=results.filter(result=>result.status==='rejected').length;
+  $('clrMsg').textContent=results.map((result,i)=>`${devName(serials[i])}（${serials[i]}）：${result.status==='fulfilled'?'已提交':result.reason.message}`).join('；')+'。执行结果见工具事件。';
+  toast(`已提交 ${serials.length-failed} / ${serials.length} 台${failed?'，部分提交失败':''}`,!!failed);
+ }finally{toolSubmitting=false;await refresh();renderClear()}
+}
+async function clearApp(launch){
+ const serials=toolTargets(),pkg=$('clrPkg').value.trim();if(!serials)return;if(!PKG_RE.test(pkg)){toast('请填写合法包名',true);return}
+ const targets=serials.map(serial=>`${devName(serial)}（${serial}）`).join('\n');
+ if(!await confirmAction(`清空以下 ${serials.length} 台手机上 ${pkg} 的全部数据${launch?'并重新启动':''}？\n${targets}\n登录状态、缓存和配置都会清除。`))return;
+ store.set('clr_pkg',pkg);await submitToolAction('clear',{pkg,launch},serials);
+}
+$('clrBtn').onclick=()=>clearApp(false);$('clrLaunchBtn').onclick=()=>clearApp(true);
+document.addEventListener('change',e=>{const serial=e.target.dataset?.toolSerial;if(serial!==undefined){if(e.target.checked)toolSerials.add(serial);else toolSerials.delete(serial);storeToolSelection()}});
+
 function draw(h){const c=$("chart"),r=devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;if(!W)return;c.width=W*r;c.height=H*r;const g=c.getContext("2d");g.scale(r,r);
  const cs=getComputedStyle(document.documentElement),col=n=>cs.getPropertyValue(n).trim();g.clearRect(0,0,W,H);
  const pad=28,n=180,maxD=Math.max(10,...h.map(p=>p[1]))*1.15,maxQ=Math.max(1,...h.map(p=>p[3]))*1.15;
@@ -193,78 +321,174 @@ function draw(h){const c=$("chart"),r=devicePixelRatio||1,W=c.clientWidth,H=c.cl
  const X=i=>pad+(W-2*pad)*(i+n-h.length)/(n-1);
  const line=(idx,max,color)=>{g.strokeStyle=color;g.lineWidth=1.6;g.beginPath();h.forEach((p,i)=>{const y=8+(H-pad-8)*(1-p[idx]/max);i?g.lineTo(X(i),y):g.moveTo(X(i),y)});g.stroke()};
  line(1,maxD,col("--accent"));line(3,maxQ,col("--warn"))}
-function renderDevices(){const ds=state.devices;
- if(!state.adb){$("devices").innerHTML=`<div class="empty">找不到 adb：请安装 Android SDK platform-tools 并加入 PATH，或把 adb 放到本程序同目录</div>`;return}
- if(!ds.length){$("devices").innerHTML=`<div class="empty">没有检测到手机（USB 连接并允许调试后会自动出现）</div>`;return}
- $("devices").innerHTML=ds.map(d=>{const ready=d.state==="device",busy=!!d.busy;
-  const tag=d.enabled?`<span class="tag on">弱网中 · 端口 ${d.port} · ${d.relay?"按 App 分类":"直连模式"}</span>`:d.foreign?`<span class="tag warn">已有其他代理 ${esc(d.proxy)}</span>`:ready?`<span class="tag">未启用</span>`:`<span class="tag warn">${esc(d.state)}</span>`;
-  const s=esc(d.serial);
-  return `<div class="dev"><div class="t"><div><b>${esc(d.model)}</b><br><small>${s}</small></div>${tag}</div><div class="row">`+
-   (d.enabled?`<button ${busy?"disabled":""} onclick="dev('${s}','off')">关闭弱网</button><button ${busy?"disabled":""} onclick="dev('${s}','reconnect')">强制重连（关开 WiFi）</button>`
-    :`<button ${busy||!ready?"disabled":""} onclick="dev('${s}','on')">启用弱网</button>`+(d.foreign?`<button ${busy?"disabled":""} onclick="dev('${s}','off')">清除代理</button>`:""))+
-   (busy?`<span class="status">执行中：${esc(d.busy)}…</span>`:"")+`</div></div>`}).join("")}
-const devName=s=>{const d=state.devices.find(d=>d.serial===s);const l=state.lanes.find(l=>l.serial===s);return (d&&d.model)||(l&&l.name)||s};
-function renderFilters(){
- const serials=[...new Set([...state.devices.map(d=>d.serial),...state.apps.map(a=>a.serial)])];
- $("fSerial").innerHTML=`<option value="">全部手机</option>`+serials.map(s=>`<option value="${esc(s)}" ${s===fSerial?"selected":""}>${esc(devName(s))} · ${esc(s)}</option>`).join("");
- const agg={};state.apps.filter(a=>!fSerial||a.serial===fSerial).forEach(a=>{const k=a.app||"-";const x=agg[k]||(agg[k]={down:0,conns:0});x.down+=a.down;x.conns+=a.conns});
- if(fApp&&!agg[fApp])agg[fApp]={down:0,conns:0};
- $("fApp").innerHTML=`<option value="">全部 App</option>`+Object.entries(agg).sort((a,b)=>b[1].down-a[1].down)
-  .map(([k,x])=>`<option value="${esc(k)}" ${k===fApp?"selected":""}>${k==="-"?"（未识别）":esc(k)} · ${fmtB(x.down)} · ${x.conns} 次</option>`).join("")}
-function renderLane(){const lanes=state.lanes;
- if(fSerial&&lanes.find(l=>l.serial===fSerial))sel=fSerial;
- if(!lanes.find(l=>l.serial===sel))sel=lanes.length?lanes[0].serial:null;
- $("tabs").innerHTML=!fSerial&&lanes.length>1?lanes.map(l=>`<button class="${l.serial===sel?"on":""}" onclick="sel='${esc(l.serial)}';render()">${esc(l.name)}</button>`).join(""):"";
- const lane=lanes.find(l=>l.serial===sel);$("laneBody").style.display=lane?"":"none";$("noLane").style.display=lane?"none":"";
- $("chartTitle").textContent=lane?`${lane.name} · ${lane.serial}`+(fApp?` · ${fApp==="-"?"未识别 App":fApp}`:" · 全部 App"):"";
- if(!lane)return;const s=lane.stats;
- const pts=s.history.map((h,i)=>fApp&&s.app_history?[h[0],s.app_history[i]?s.app_history[i][1]:0,h[2],h[3]]:h);
- const last=pts.at(-1)||[0,0,0,0];
- $("kDown").textContent=last[1].toFixed(1);$("kDownLabel").textContent=fApp?"该 App 下行 KB/s":"下行 KB/s";$("lgDown").textContent=fApp?"该 App 下行 KB/s":"下行 KB/s";
- $("kQueue").textContent=s.queue_down_s.toFixed(1);$("kConns").textContent=s.conns;$("kLoss").textContent=s.loss_events;
- draw(pts)}
+function renderLane(){
+ const s=displayState,lanes=s.lanes;
+ const candidates=fSerial?lanes.filter(l=>l.serial===fSerial):lanes;
+ if(!candidates.some(l=>l.serial===selectedLane))selectedLane=candidates[0]?.serial||'';
+ html('tabs',!fSerial&&lanes.length>1?lanes.map(l=>`<button class="mini ${l.serial===selectedLane?'on':''}" data-lane="${esc(l.serial)}">${esc(l.name)} · ${esc(l.serial)}</button>`).join(''):'');
+ const lane=candidates.find(l=>l.serial===selectedLane);$('laneBody').hidden=!lane;$('noLane').hidden=!!lane;
+ $('chartTitle').textContent=lane?`${lane.name} · ${lane.serial} · ${fApp?(fApp==='-'?'未识别 App':fApp):'全部 App'}${paused?' · 已暂停刷新':''}`:'';
+ if(!lane){$('noLane').firstChild.textContent=fSerial?'所选手机未启用弱网。':'尚未启用弱网。';return}
+ const stats=lane.stats,ready=!fApp||s._appFilter===fApp;
+ const points=ready?stats.history.map((h,i)=>fApp?[h[0],stats.app_history?.[i]?.[1]||0,h[2],h[3]]:h):[];
+ $('kDown').textContent=ready?(points.at(-1)?.[1]||0).toFixed(1):'…';$('kDownLabel').textContent=fApp?'该 App 下行 KB/s':'整机下行 KB/s';$('lgDown').textContent=$('kDownLabel').textContent;
+ $('kQueue').textContent=stats.queue_down_s.toFixed(1);$('kConns').textContent=stats.conns;$('kLoss').textContent=stats.loss_events;draw(points);
+}
+function listActions(item){return `<button class="mini" data-list="blacklist" data-item="${esc(item)}">+黑名单</button><button class="mini" data-list="whitelist" data-item="${esc(item)}">+白名单</button>`}
 function renderHosts(){
- const lanes=state.lanes.filter(l=>!fSerial||l.serial===fSerial);
- const all=[];lanes.forEach(l=>l.stats.hosts.forEach(h=>{if(fApp&&(fApp==="-"?h.app!=="":h.app!==fApp))return;if(fHost&&!h.host.includes(fHost))return;all.push({...h,serial:l.serial,dev:l.name})}));
- if(!all.length){$("hosts").innerHTML=`<tr><td colspan="4" class="empty">${state.lanes.length?"暂无流量":"还没有手机启用弱网"}</td></tr>`;return}
- const mx=Math.max(1,...all.map(h=>h.kbs)),sum=a=>Math.round(a.reduce((x,h)=>x+h.kbs,0)*10)/10;
- const row=h=>`<tr class="sub"><td>${esc(h.host)}</td><td class="n">${h.kbs}</td><td class="n">${h.bypass?'<span class="tag" title="白名单内，或黑名单开启时不在黑名单内">直连</span>':h.queued_kb}</td><td><div class="bar" style="width:${100*h.kbs/mx}%;${h.bypass?'background:var(--quiet)':''}"></div></td></tr>`;
- const group=(arr,key)=>{const g={};arr.forEach(h=>{const k=key(h);(g[k]=g[k]||[]).push(h)});return Object.entries(g).sort((a,b)=>sum(b[1])-sum(a[1]))};
- const showDev=lanes.length>1;
- $("hosts").innerHTML=group(all,h=>h.serial).map(([serial,hs])=>
-  (showDev?`<tr class="devrow"><td>${esc(hs[0].dev)} <small>${esc(serial)}</small></td><td class="n">${sum(hs)}</td><td></td><td></td></tr>`:"")+
-  group(hs,h=>h.app||"-").map(([app,as])=>{
-   const pkg=app.replace(/ \(\+\d+\)$/,""),real=/^[a-zA-Z][\w]*(\.[\w]+)+$/.test(pkg);
-   const acts=`<span class="acts"><a onclick="setApp('${esc(app)}')">只看它</a>`+(real?`<a onclick="addTo('blacklist','${esc(pkg)}')">+黑名单</a><a onclick="addTo('whitelist','${esc(pkg)}')">+白名单</a>`:"")+`</span>`;
-   const q=as.reduce((x,h)=>x+(h.bypass?0:h.queued_kb),0);
-   return `<tr class="grp${showDev?" in":""}"><td>${app==="-"?"（未识别）":esc(app)}${acts}</td><td class="n">${sum(as)}</td><td class="n">${q}</td><td></td></tr>`+as.map(row).join("")}).join("")).join("")}
-function addTo(list,pkg){const cur=state.config[list];if(cur.includes(pkg))return;post("/api/config",{[list]:[...cur,pkg]})}
-function connQuery(){const q=new URLSearchParams();if(fSerial)q.set("serial",fSerial);if(fApp)q.set("app",fApp);if(fHost)q.set("host",fHost);if(onlyActive)q.set("status","active");return q}
-const ST={active:["进行中","on"],ok:["完成",""],failed:["失败","bad"],rejected:["断网拒绝","warn"]};
-async function refreshConns(){if(stopped)return;const q=connQuery();$("exportCsv").href="/api/conns.csv?"+q;q.set("limit","300");
- let d;try{d=await (await fetch("/api/conns?"+q)).json()}catch(e){return}
- const s=d.summary;$("connSum").textContent=`共 ${s.count} 个连接（进行中 ${s.active}，失败 ${s.failed}）· 下行 ${fmtB(s.down)} · 上行 ${fmtB(s.up)} · 平均耗时 ${fmtMs(s.avg_ms)} · 走弱网 ${s.shaped} / 直连 ${s.bypassed}`+(s.count>d.rows.length?` · 下表显示最新 ${d.rows.length} 条`:"");
- const now=Date.now();
- $("conns").innerHTML=d.rows.map(r=>{const st=ST[r.status]||[r.status,""];const dur=(r.end||now)-r.start;
-  return `<tr><td>${hhmmss(r.start)}</td><td title="${esc(r.serial)}">${esc(r.device)}</td><td><a class="lnk" onclick="setApp('${esc(r.app||"-")}')">${r.app?esc(r.app):"（未识别）"}</a></td><td title="${esc(r.host)}:${esc(r.port)}">${esc(r.host)}</td><td class="n">${fmtB(r.down)}</td><td class="n">${fmtB(r.up)}</td><td class="n">${fmtMs(dur)}${r.end?"":"…"}</td><td><span class="tag ${st[1]}" title="${esc(r.error||"")}">${st[0]}</span> <span class="tag">${r.shaped?"弱网":"直连"}</span></td></tr>`}).join("")||`<tr><td colspan="8" class="empty">没有符合条件的连接</td></tr>`}
-function renderEvents(){if(!state)return;const type=$("evType").value,q=$("evSearch").value.trim().toLowerCase();
- const rows=state.events.filter(s=>(!type||(type==="system"?!/\[(资源|HTTP|HTTPS 隧道)\]/.test(s):s.includes("["+type+"]")))&&(!q||s.toLowerCase().includes(q)));
- $("evCount").textContent=`显示 ${rows.length} / ${state.events.length} 条（最新在前）`;
- $("events").textContent=rows.join("\n")||"没有符合条件的事件"}
-$("evType").onchange=renderEvents;$("evSearch").oninput=renderEvents;
-function render(){const c=state.config;
- $("presets").innerHTML=state.presets.map(p=>`<button class="${c.preset===p.key?"on":""}" onclick="post('/api/preset/${p.key}')">${p.label}</button>`).join("");
- if(Date.now()-editing>1500)F.forEach(([k])=>{$("r_"+k).value=c[k];$("n_"+k).value=c[k];showConv(k)});
- document.querySelectorAll("#outage button").forEach(b=>b.classList.toggle("on",b.dataset.o===c.outage));
- if(document.activeElement!==$("whitelist"))$("whitelist").value=c.whitelist.join(",");
- if(document.activeElement!==$("blacklist"))$("blacklist").value=c.blacklist.join(",");
- $("blOn").checked=c.blacklist_on;
- const wl=c.whitelist.length?`，白名单 ${c.whitelist.length} 项除外`:"";
- const sc=$("scope");sc.classList.toggle("warn",c.blacklist_on&&!c.blacklist.length);
- sc.textContent=!c.blacklist_on?`所有流量都走弱网${wl}`:c.blacklist.length?`只有黑名单的 ${c.blacklist.length} 项走弱网${wl}`:"黑名单开关已开启但名单为空：不会限制任何流量";
- $("summary").textContent=`下行 ${c.down_kbps?c.down_kbps+" kbps（"+fmtRate(c.down_kbps).slice(2)+"）":"不限"} · 上行 ${c.up_kbps?c.up_kbps+" kbps（"+fmtRate(c.up_kbps).slice(2)+"）":"不限"} · RTT ≈ ${c.delay_ms*2} ms · 抖动 ${c.jitter_ms} ms · 丢包 ${c.loss_pct}%`+(c.outage?` · ${c.outage==="stall"?"卡死中":"已断开"}`:"")+(c.blacklist_on?` · 仅黑名单`:"")+` · ${state.lanes.length} 台手机走弱网`;
- if(document.activeElement!==$("fSerial")&&document.activeElement!==$("fApp"))renderFilters();
- renderDevices();renderClear();renderLane();renderHosts();renderEvents()}
-async function refresh(){if(stopped)return;try{state=await (await fetch("/api/state?app="+encodeURIComponent(fApp))).json();render()}catch(e){$("summary").textContent="连接不上模拟器（可能已退出）"}}
-refresh();refreshConns();setInterval(refresh,1000);setInterval(refreshConns,2000);
-</script></body></html>
+ if(hasSelection('hosts'))return;
+ const lanes=displayState.lanes.filter(l=>!fSerial||l.serial===fSerial),all=[];
+ lanes.forEach(l=>l.stats.hosts.forEach(h=>{if(fApp&&(h.app||'-')!==fApp||fHost&&!h.host.toLowerCase().includes(fHost.toLowerCase()))return;all.push({...h,serial:l.serial,device:l.name})}));
+ if(!all.length){html('hosts','<tr><td colspan="4" class="empty">没有符合筛选条件的实时流量</td></tr>');return}
+ const sum=items=>items.reduce((total,h)=>total+h.kbs,0),max=Math.max(1,...all.map(h=>h.kbs));
+ function group(items,key){const map=new Map();items.forEach(h=>{const k=key(h);if(!map.has(k))map.set(k,[]);map.get(k).push(h)});return [...map].sort((a,b)=>sum(b[1])-sum(a[1]))}
+ html('hosts',group(all,h=>h.serial).map(([serial,items])=>{
+  const device=lanes.length>1?`<tr class="devrow"><td>${esc(items[0].device)} <span class="status">${esc(serial)}</span></td><td class="n">${sum(items).toFixed(1)}</td><td></td><td></td></tr>`:'';
+  return device+group(items,h=>h.app||'-').map(([app,hosts])=>{
+   const pkg=app.replace(/ \(\+\d+\)$/,''),queue=hosts.reduce((total,h)=>total+(h.bypass?0:h.queued_kb),0);
+   return `<tr class="grp"><td><span class="host-name">${esc(app==='-'?'（未识别）':app)}</span><div class="actions"><button class="mini" data-app="${esc(app)}" data-serial="${esc(serial)}">只看它</button>${app==='-'?'':copyButton(pkg,'复制包名')}${PKG_RE.test(pkg)?listActions(pkg):''}</div></td><td class="n">${sum(hosts).toFixed(1)}</td><td class="n">${queue}</td><td></td></tr>`+hosts.map(h=>`<tr class="sub"><td><span class="host-name">${esc(h.host)}</span><div class="actions">${copyButton(h.host,'复制域名')}<button class="mini" data-host="${esc(h.host)}">筛选</button>${listActions(h.host)}</div></td><td class="n">${h.kbs}</td><td class="n">${h.bypass?'<span class="tag">直连</span>':h.queued_kb}</td><td><div class="bar" style="width:${100*h.kbs/max}%"></div></td></tr>`).join('');
+  }).join('');
+ }).join(''));
+}
+function connQuery(){
+ const query=new URLSearchParams();for(const [key,value] of [['serial',fSerial],['app',fApp],['host',fHost],['status',$('hStatus').value],['shaped',$('hShaped').value]])if(value)query.set(key,value);
+ const since=$('hSince').value?new Date($('hSince').value).getTime():0,until=$('hUntil').value?new Date($('hUntil').value).getTime()+59999:0;
+ if(!Number.isFinite(since)||!Number.isFinite(until)||since&&until&&since>until)throw new Error('开始时间范围不正确');
+ if(since)query.set('since',since);if(until)query.set('until',until);return query;
+}
+function renderConns(){
+ if(!connData)return;const {rows,summary:s}=connData;
+ $('connSum').textContent=`共 ${s.count} 个连接 · 进行中 ${s.active} · 失败 ${s.failed} · 下行 ${fmtB(s.down)} · 上行 ${fmtB(s.up)} · 已结束平均耗时 ${fmtMs(s.avg_ms)} · 弱网 ${s.shaped} / 直连 ${s.bypassed}`;
+ if(!hasSelection('conns'))html('conns',rows.map(r=>{const status=ST[r.status]||[r.status,''];return `<tr><td title="${esc(new Date(r.start).toLocaleString())}">${hhmmss(r.start)}</td><td title="${esc(r.serial)}"><span class="clip">${esc(r.device)}</span></td><td><button class="link clip" data-app="${esc(r.app||'-')}" title="筛选 ${esc(r.app||'未识别')}">${esc(r.app||'（未识别）')}</button></td><td><button class="link clip" data-detail="${r.id}" title="${esc(r.host)}:${esc(r.port)}">${esc(r.host)}</button></td><td class="n">${fmtB(r.down)}</td><td class="n">${fmtB(r.up)}</td><td class="n">${fmtMs((r.end||Date.now())-r.start)}</td><td><button class="mini" data-detail="${r.id}"><span class="${status[1]}">${esc(status[0])}</span> · ${r.shaped?'弱网':'直连'} · 详情</button></td></tr>`}).join('')||'<tr><td colspan="8" class="empty">没有符合条件的连接</td></tr>');
+ $('hPrev').disabled=pageCursors.length===1;$('hNext').disabled=!nextCursor;$('copyConns').disabled=!rows.length;
+ $('hPage').textContent=`第 ${pageCursors.length} 页 · 本页 ${rows.length} 条${pageCursors.length>1?' · 历史自动更新已暂停':''}`;
+}
+async function refreshConns(force=false){
+ if(stopped||view!=='history'||!force&&(paused||document.hidden||pageCursors.length>1||connBusy||hasSelection('conns')))return;
+ let query;try{query=connQuery();$('exportCsv').href='/api/conns.csv?'+query;$('exportCsv').removeAttribute('aria-disabled')}catch(error){$('connError').textContent=error.message;$('exportCsv').removeAttribute('href');$('exportCsv').setAttribute('aria-disabled','true');return}
+ const version=++connVersion;connBusy=true;query.set('limit','100');if(pageCursors.at(-1))query.set('before',pageCursors.at(-1));
+ $('hNext').disabled=$('hPrev').disabled=true;
+ try{const data=await request('/api/conns?'+query);if(version!==connVersion||stopped)return;connData=data;nextCursor=data.next_before;$('connError').textContent='';renderConns()}
+ catch(error){if(version===connVersion){$('connError').textContent='加载失败：'+error.message;$('hPrev').disabled=pageCursors.length===1;$('hNext').disabled=true}}
+ finally{if(version===connVersion)connBusy=false}
+}
+function resetHistory(){connVersion++;pageCursors=[0];nextCursor=0;connData=null;html('conns','');refreshConns(true)}
+for(const id of ['hStatus','hShaped','hSince','hUntil'])$(id).onchange=resetHistory;
+$('hClear').onclick=()=>{for(const id of ['hStatus','hShaped','hSince','hUntil'])$(id).value='';resetHistory()};
+$('hNext').onclick=()=>{if(nextCursor){pageCursors.push(nextCursor);nextCursor=0;refreshConns(true)}};
+$('hPrev').onclick=()=>{if(pageCursors.length>1){pageCursors.pop();refreshConns(true)}};
+$('hLatest').onclick=resetHistory;
+function connText(r){return [`开始：${new Date(r.start).toLocaleString()}`,`结束：${r.end?new Date(r.end).toLocaleString():'进行中'}`,`手机：${r.device} (${r.serial})`,`App：${r.app||'未识别'}`,`地址：${r.host}:${r.port}`,`下行：${fmtB(r.down)} / 上行：${fmtB(r.up)}`,`耗时：${fmtMs((r.end||Date.now())-r.start)}`,`状态：${ST[r.status]?.[0]||r.status} / ${r.shaped?'弱网':'直连'}`,`错误：${r.error||'无'}`].join('\n')}
+$('copyDetail').onclick=()=>copyText($('detailText').textContent);
+$('copyConns').onclick=()=>copyText(connData?.rows.map(connText).join('\n\n'));
+$('clearConns').onclick=async()=>{if(!await confirmAction('清空所有手机、所有 App 的全部连接历史？此操作不受当前筛选限制。'))return;try{await request('/api/conns/clear',{});toast('已清空全部连接历史');resetHistory();refresh()}catch(error){toast('清空失败：'+error.message,true)}};
+function filteredEvents(){
+ const type=$('evType').value,source=$('evSource').value,status=$('evStatus').value,q=$('evSearch').value.trim().toLowerCase();
+ const rows=displayState?.event_details||displayState?.events?.map(text=>({text,status:/\[(资源|HTTP|HTTPS 隧道)\]/.test(text)?'unknown':''}))||[];
+ return rows.filter(e=>(!type||(type==='system'?!/\[(资源|HTTP|HTTPS 隧道)\]/.test(e.text):e.text.includes('['+type+']')))&&(!source||e.text.includes('['+source+']'))&&(!status||(status==='errors'?['failed','timeout'].includes(e.status):e.status===status))&&(!q||(e.text+' '+(e.detail||'')).toLowerCase().includes(q)));
+}
+function eventLabel(e){if(e.scope==='tunnel'&&e.status==='active')return '连接中';if(e.scope==='tunnel'&&e.status==='complete')return '隧道已结束';return {active:'请求中',complete:'请求完成',failed:'请求失败',timeout:'请求失败（超时）',unknown:'结果未知'}[e.status]||''}
+function eventText(e){return e.text+(eventLabel(e)?` · [${eventLabel(e)}]`:'')+(e.detail?' · '+e.detail:'')}
+function eventAddress(line){return /\[(?:资源|HTTP)\]\[(?:代理|App 日志)\]\s+(?:[A-Z]+\s+)?(https?:\/\/\S+)/.exec(line)?.[1]||''}
+function renderEvents(){
+ if(hasSelection('events'))return;
+ const rows=filteredEvents();$('evCount').textContent=`显示 ${rows.length} / ${displayState.events.length} 条 · 最新在前${paused?' · 已暂停刷新':''}`;
+ html('events',rows.map(e=>{const address=eventAddress(e.text),cls={active:'warn',complete:'on',failed:'bad',timeout:'bad'}[e.status]||'',label=eventLabel(e);return `<article class="event"><div><div class="event-text">${label?`<span class="tag ${cls}">${esc(label)}</span> `:''}${esc(e.text)}</div>${e.detail?`<div class="hint">${esc(e.detail)}</div>`:''}</div><div class="event-actions">${address?copyButton(address,'复制脱敏 URL'):''}${copyButton(eventText(e),'复制整条')}</div></article>`}).join('')||'<div class="empty">没有符合条件的事件</div>');
+ $('copyEvents').disabled=$('exportEvents').disabled=!rows.length;
+}
+for(const id of ['evType','evSearch','evSource','evStatus'])$(id).addEventListener(id==='evSearch'?'input':'change',()=>{if(displayState)renderEvents()});
+$('evClear').onclick=()=>{for(const id of ['evType','evSearch','evSource','evStatus'])$(id).value='';if(displayState)renderEvents()};
+$('copyEvents').onclick=()=>copyText(filteredEvents().map(eventText).join('\n'));
+$('exportEvents').onclick=()=>download('weaknet-events-'+Date.now()+'.txt',filteredEvents().map(eventText).join('\n'),'text/plain;charset=utf-8');
+function profileConfig(raw){
+ if(!raw||typeof raw!=='object')throw new Error('方案配置格式不正确');const config={};
+ for(const [key,,min] of F){const value=raw[key];if(typeof value!=='number'||!Number.isFinite(value)||value<min||key==='loss_pct'&&value>100)throw new Error('方案参数不正确：'+key);config[key]=value}
+ if(!['','stall','reset'].includes(raw.outage)||typeof raw.blacklist_on!=='boolean')throw new Error('方案网络状态不正确');
+ config.outage=raw.outage;config.blacklist_on=raw.blacklist_on;
+ for(const list of ['blacklist','whitelist']){if(!Array.isArray(raw[list])||raw[list].length>1000||raw[list].some(v=>typeof v!=='string'||v.length>255||/\s|[,，]/.test(v)))throw new Error('方案名单格式不正确');config[list]=[...new Set(raw[list].filter(Boolean))]}
+ return config;
+}
+function validateProfiles(raw){
+ if(!Array.isArray(raw)||raw.length>100)throw new Error('最多支持 100 个方案');
+ return raw.map(p=>{if(!p||typeof p.name!=='string'||!p.name.trim()||p.name.length>80)throw new Error('方案名称不正确');return {name:p.name.trim(),config:profileConfig(p.config)}});
+}
+let profiles=[];try{profiles=validateProfiles(JSON.parse(store.get('profiles')||'[]'))}catch{}
+function renderProfiles(){const current=$('profiles').value;html('profiles','<option value="">选择方案…</option>'+profiles.map((p,i)=>`<option value="${i}" ${String(i)===current?'selected':''}>${esc(p.name)}</option>`).join(''));const selected=$('profiles').value!=='';$('applyProfile').disabled=$('deleteProfile').disabled=!selected;$('exportProfiles').disabled=!profiles.length}
+function persistProfiles(next){if(!store.set('profiles',JSON.stringify(next))){toast('浏览器无法保存方案，请检查存储权限',true);return false}profiles=next;renderProfiles();return true}
+$('profiles').onchange=renderProfiles;
+$('saveProfile').onclick=async()=>{
+ if(!state||!await flushParams())return;
+ const name=await askName('请输入方案名称（最多 80 字）。');if(!name?.trim())return;if(name.trim().length>80){toast('方案名称过长',true);return}
+ const config={...state.config,blacklist:listItems($('blacklist').value),whitelist:listItems($('whitelist').value)},index=profiles.findIndex(p=>p.name===name.trim());
+ if(index>=0&&!await confirmAction(`覆盖方案“${name.trim()}”？`))return;
+ const next=[...profiles],profile={name:name.trim(),config:profileConfig(config)};if(index>=0)next[index]=profile;else{if(next.length>=100){toast('最多保存 100 个方案',true);return}next.push(profile)}
+ if(persistProfiles(next))toast('方案已保存（包含名单草稿）');
+};
+$('applyProfile').onclick=async()=>{
+ const profile=profiles[Number($('profiles').value)];if(!profile)return;
+ const c=profile.config,message=`应用“${profile.name}”？\n下行 ${c.down_kbps} kbps，上行 ${c.up_kbps} kbps，延迟 ${c.delay_ms} ms\n网络状态：${c.outage==='reset'?'断开':c.outage==='stall'?'卡死':'正常'}\n黑名单 ${c.blacklist.length} 项，白名单 ${c.whitelist.length} 项。\n将替换所有启用手机的当前配置${dirty.blacklist||dirty.whitelist?'及未保存的名单草稿':''}。`;
+ if(!await confirmAction(message))return;
+ const drafts={blacklist:$('blacklist').value,whitelist:$('whitelist').value};
+ if(await changeConfig(c,'方案已应用')){for(const list of ['blacklist','whitelist'])if($(list).value===drafts[list]||!dirty[list]){dirty[list]=false;store.remove('draft_'+list)}renderLists()}
+};
+$('deleteProfile').onclick=async()=>{const index=Number($('profiles').value);if($('profiles').value===''||!profiles[index]||!await confirmAction(`删除方案“${profiles[index].name}”？`))return;if(persistProfiles(profiles.filter((_,i)=>i!==index)))toast('方案已删除')};
+$('exportProfiles').onclick=()=>download('weaknet-profiles.json',JSON.stringify({version:1,profiles},null,2),'application/json');
+$('importProfiles').onclick=()=>$('profileFile').click();
+$('profileFile').onchange=async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{if(file.size>1024*1024)throw new Error('文件不能超过 1 MB');const data=JSON.parse(await file.text());if(data.version!==1)throw new Error('不支持的方案版本');const incoming=validateProfiles(data.profiles),map=new Map(profiles.map(p=>[p.name,p]));if(!incoming.length)throw new Error('文件中没有方案');
+  if(!await confirmAction(`导入 ${incoming.length} 个方案？同名方案将被替换；不会自动应用配置。`))return;
+  incoming.forEach(p=>map.set(p.name,p));const next=validateProfiles([...map.values()]);if(persistProfiles(next))toast('方案已导入');
+ }catch(error){toast('导入失败：'+error.message,true)}finally{e.target.value=''}
+};
+function render(){
+ const c=state.config;
+ $('summary').textContent=`${state.lanes.length} 台手机弱网中 · 下行 ${c.down_kbps?c.down_kbps+' kbps':'不限'} · 上行 ${c.up_kbps?c.up_kbps+' kbps':'不限'} · RTT ≈ ${c.delay_ms*2} ms · ${c.outage==='reset'?'已断网':c.outage==='stall'?'卡死中':'正常'}${c.blacklist_on?' · 仅黑名单':''}`;
+ renderConfig();renderClear();renderDevices();renderFilters();
+ if(view==='monitor'){renderLane();renderHosts();renderEvents()}if(view==='events')renderEvents();
+ $('pauseInfo').hidden=!paused;if(paused)$('pauseInfo').textContent=`自动刷新已暂停，后台采集继续，手动切换筛选仍可查询。暂停后新增 ${Math.max(0,state.event_seq-pauseSeq)} 条事件；设备状态和配置仍实时更新。`;
+}
+async function refresh(){
+ if(stopped||stateBusy)return;stateBusy=true;const app=fApp,epoch=configEpoch;
+ try{
+  const incoming=await request('/api/state?app='+encodeURIComponent(app));if(stopped)return;
+  if(app!==fApp)return;
+  incoming._appFilter=app;if(state&&epoch!==configEpoch)incoming.config=state.config;
+  state=incoming;if(!paused||!displayState||manualDisplay){displayState=incoming;manualDisplay=false}
+  $('connection').hidden=true;render();
+ }catch(error){if(!stopped){$('connection').hidden=false;$('connection').textContent='无法刷新：'+error.message+'。当前显示上次成功的数据，将自动重试。'}}
+ finally{stateBusy=false;if(!stopped&&app!==fApp)refresh()}
+}
+$('pause').onclick=()=>{if(!state)return;paused=!paused;pauseSeq=state.event_seq;$('pause').textContent=paused?'恢复自动刷新':'暂停自动刷新';$('pause').classList.toggle('on',paused);if(!paused){displayState=state;refreshConns(true)}render()};
+$('quit').onclick=async()=>{
+ if(!await confirmAction('恢复所有已启用弱网的手机并退出模拟器？'))return;
+ $('quit').disabled=true;
+ try{await request('/api/quit',{});stopped=true;document.body.innerHTML='<main class="shell"><div class="card"><h1>正在退出模拟器</h1><p>退出请求已接受，正在恢复手机网络。请等待程序结束后关闭页面。</p></div></main>'}
+ catch(error){$('quit').disabled=false;toast('退出请求未确认：'+error.message+'。请检查程序状态。',true)}
+};
+document.addEventListener('click',e=>{document.querySelectorAll('.list-menu[open],.device-picker[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false})});
+document.addEventListener('click',async e=>{
+ const button=e.target.closest('button');if(!button||button.disabled)return;const d=button.dataset;
+ if(d.view){selectView(d.view);return}if(d.copy!==undefined){copyText(d.copy);return}if(d.close){$(d.close).close();return}
+ if(d.retry!==undefined){flushParams();return}
+ if(d.toolSelect){toolSerials=d.toolSelect==='all'?new Set(state.devices.filter(d=>d.state==='device'&&!d.busy).map(d=>d.serial)):new Set();storeToolSelection();return}
+ if(d.toolAction){const serials=toolTargets();if(serials)await submitToolAction(d.toolAction,{},serials);return}
+ if(d.removeList){const list=d.removeList;$(list).value=listItems($(list).value).filter(item=>item!==d.item).join(',');draftChanged(list);return}
+ if(d.list){button.disabled=true;try{await addTo(d.list,d.item)}finally{button.disabled=false}return}
+ if(d.app){if(d.serial)fSerial=d.serial;setApp(d.app);return}
+ if(d.host){clearTimeout(hostTimer);fHost=d.host;$('fHost').value=fHost;filtersChanged();return}
+ if(d.lane){selectedLane=d.lane;store.set('lane',selectedLane);renderLane();return}
+ if(d.detail){const record=connData?.rows.find(r=>r.id===Number(d.detail));if(record){$('detailText').textContent=connText(record);$('detailDialog').showModal()}return}
+ if(d.device){button.disabled=true;try{await request(`/api/device/${encodeURIComponent(d.device)}/${d.deviceAction}`,{});toast('操作已提交，执行状态见设备卡片');await refresh()}catch(error){toast('操作失败：'+error.message,true)}finally{button.disabled=false}return}
+ if(d.preset){button.disabled=true;if(!await flushParams()){button.disabled=false;return}try{await queueConfig({},'/api/preset/'+encodeURIComponent(d.preset));toast('档位已切换');renderConfig();await refresh()}catch(error){toast('切换失败：'+error.message,true)}finally{button.disabled=false}return}
+ if(d.o!==undefined){button.disabled=true;await changeConfig({outage:d.o},'网络状态已更新');button.disabled=false}
+});
+window.addEventListener('beforeunload',event=>{if(dirty.blacklist||dirty.whitelist||Object.keys(pending).length||[...savingKeys.values()].some(Boolean)){event.preventDefault();event.returnValue=''}});
+window.addEventListener('resize',()=>{if(displayState&&view==='monitor')renderLane()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();refreshConns()}});
+renderProfiles();selectView(view);refresh();
+setInterval(()=>{if(!document.hidden)refresh()},1000);
+setInterval(()=>refreshConns(),2000);
+</script>
+</body>
+</html>

@@ -8,10 +8,124 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
+
+func waitEventStatus(t *testing.T, app *App, id uint64, status string) EventView {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		for _, e := range app.state("").EventDetails {
+			if e.ID == id && e.Status == status {
+				return e
+			}
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("event %d did not reach %s: %+v", id, status, app.state("").EventDetails)
+	return EventView{}
+}
+
+func TestResponseEventLifecycle(t *testing.T) {
+	for _, tc := range []struct{ name, method, response, status string }{
+		{"length", "GET", "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok", "complete"},
+		{"chunked", "GET", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n", "complete"},
+		{"head", "HEAD", "HTTP/1.1 200 OK\r\nContent-Length: 200\r\n\r\n", "complete"},
+		{"interim", "GET", "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 204 No Content\r\n\r\n", "complete"},
+		{"http error", "GET", "HTTP/1.1 503 Unavailable\r\nContent-Length: 0\r\n\r\n", "failed"},
+		{"truncated", "GET", "HTTP/1.1 200 OK\r\nContent-Length: 20\r\n\r\nok", "failed"},
+		{"malformed", "GET", "invalid response\r\n\r\n", "failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newTestApp(t, "unlimited")
+			lane := newLane(app, "test", "phone", 0)
+			id := lane.proxyRequestEvent("", tc.method, "http://example.com/file", false)
+			waitEventStatus(t, app, id, "active")
+			o := newResponseObserver(app, id, tc.method)
+			for _, b := range []byte(tc.response) {
+				o.feed([]byte{b})
+			}
+			o.close()
+			waitEventStatus(t, app, id, tc.status)
+			if len(app.state("").Events) != 1 || app.state("").EventSeq != 1 {
+				t.Fatal("生命周期更新不应创建重复事件")
+			}
+		})
+	}
+}
+
+func TestRequestTimeoutUnknownAndEviction(t *testing.T) {
+	app := newTestApp(t, "unlimited")
+	lane := newLane(app, "test", "phone", 0)
+	id := lane.proxyRequestEvent("", "GET", "http://example.com", false)
+	app.failEvent(id, os.ErrDeadlineExceeded)
+	waitEventStatus(t, app, id, "timeout")
+	app.finishEvent(id, "complete", "late update")
+	waitEventStatus(t, app, id, "timeout")
+	logID := lane.requestEvent("App 日志", "com.example", "GET", "https://example.com", "")
+	waitEventStatus(t, app, logID, "unknown")
+	for i := 0; i < 301; i++ {
+		app.event("tool event")
+	}
+	app.finishEvent(id, "failed", "evicted")
+	st := app.state("")
+	if len(st.EventDetails) != 300 || len(st.Events) != 300 {
+		t.Fatal("事件列表必须有界")
+	}
+	st.EventDetails[0].Text = "mutated"
+	if app.state("").EventDetails[0].Text == "mutated" {
+		t.Fatal("状态快照不应共享事件内存")
+	}
+}
+
+func TestHTTPEventCompletesBeforeKeepAliveCloses(t *testing.T) {
+	for _, bypass := range []bool{false, true} {
+		t.Run(fmt.Sprint(bypass), func(t *testing.T) {
+			app := newTestApp(t, "unlimited")
+			if bypass {
+				app.cfg.Update(map[string]any{"whitelist": "127.0.0.1"})
+			}
+			lane := startLane(t, app, "A")
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) }))
+			defer srv.Close()
+			proxy, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", lane.port))
+			tr := &http.Transport{Proxy: http.ProxyURL(proxy)}
+			defer tr.CloseIdleConnections()
+			client := &http.Client{Transport: tr, Timeout: 3 * time.Second}
+			resp, err := client.Get(srv.URL + "/keepalive")
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if err != nil || string(body) != "ok" {
+				t.Fatalf("forwarded body = %q, %v", body, err)
+			}
+			waitEventStatus(t, app, 1, "complete")
+			rows, _ := app.conns.query(ConnFilter{}, 100)
+			if len(rows) != 1 || rows[0].Status != "active" {
+				t.Fatalf("request should finish while connection stays active: %+v", rows)
+			}
+		})
+	}
+}
+
+func TestProxyResetAndDialFailureEvents(t *testing.T) {
+	for _, reset := range []bool{false, true} {
+		t.Run(fmt.Sprint(reset), func(t *testing.T) {
+			app := newTestApp(t, "unlimited")
+			if reset {
+				app.cfg.Update(map[string]any{"outage": "reset"})
+			}
+			lane := startLane(t, app, "A")
+			_, _, _ = fetch(lane, "http://127.0.0.1:1/fail")
+			waitEventStatus(t, app, 1, "failed")
+		})
+	}
+}
 
 func TestDisplayURL(t *testing.T) {
 	for _, tc := range []struct {
