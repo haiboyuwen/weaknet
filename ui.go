@@ -15,6 +15,7 @@ var pageHTML []byte
 
 func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
+	a.httpsRoutes(mux)
 	writeJSON := func(w http.ResponseWriter, v any) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")

@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -35,6 +36,7 @@ func main() {
 	serial := flag.String("serial", "", "启动后直接启用这些手机（逗号分隔的序列号）")
 	adbPath := flag.String("adb", "", "adb 路径，默认自动查找")
 	noBrowser := flag.Bool("no-browser", false, "启动后不自动打开浏览器")
+	dataDir := flag.String("data-dir", "", "固定 CA 和 HTTPS 设置目录，默认系统用户配置目录下的 weaknet")
 	flag.Parse()
 
 	if findPreset(*preset) == nil {
@@ -47,6 +49,19 @@ func main() {
 
 	adb := findAdb(*adbPath)
 	app := newApp(cfg, *dnsServer, adb, *port)
+	if *dataDir == "" {
+		dir, err := os.UserConfigDir()
+		if err != nil {
+			fatal("读取配置目录失败：%v", err)
+		}
+		*dataDir = filepath.Join(dir, "weaknet")
+	}
+	var err error
+	app.https, err = openHTTPSManager(*dataDir)
+	if err != nil {
+		fatal("加载固定 CA 失败：%v", err)
+	}
+	log.Printf("固定 CA：%s（私钥仅保存在本机）", app.https.dir)
 	log.Printf("弱网模拟器 %s", version)
 	if adb == "" {
 		log.Println("找不到 adb：请安装 Android SDK platform-tools、加入 PATH，或把 adb 放在本程序同目录，也可用 -adb 指定")

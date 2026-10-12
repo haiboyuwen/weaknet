@@ -163,3 +163,14 @@ test('事件按结构化手机、App 和域名跟随观测范围，复制保留�
  h.element('evFollow').checked=false;h.run("$('evFollow').onchange()");assert.equal(h.run('filteredEvents().length'),5);assert.match(h.run('eventContent(filteredEvents()[0])'),/data-app="com.example.app"/);assert.match(h.run('eventContent(filteredEvents()[0])'),/Same model/);
  h.element('evFollow').checked=true;h.run("fSerial='';fApp='';fHost='';renderEvents()");assert.equal(h.run('filteredEvents().length'),5);
 });
+
+test('HTTPS 轮询保留域名草稿，保存失败也不丢失，成功使用返回设置',async()=>{
+ const h=setup();h.state.https={enabled:false,domains:['old.example'],fingerprint:'ABCD',expires:'2036-10-12',directory:'/local/weaknet'};
+ h.run('renderHTTPS()');assert.equal(h.element('httpsDomains').value,'old.example');
+ h.element('httpsDomains').value='api.example， cdn.example';h.element('httpsEnabled').checked=true;h.run("$('httpsDomains').oninput();renderHTTPS()");
+ assert.equal(h.element('httpsDomains').value,'api.example， cdn.example');
+ h.setHandler(()=>({ok:false,text:async()=>JSON.stringify({error:'disk full'})}));await h.run("$('saveHTTPS').onclick()");
+ assert.equal(h.element('httpsDomains').value,'api.example， cdn.example');assert.equal(h.run('httpsDirty'),true);
+ h.setHandler(()=>h.response({...h.state.https,enabled:true,domains:['api.example','cdn.example']}));await h.run("$('saveHTTPS').onclick()");
+ assert.deepEqual(JSON.parse(h.calls.at(-1).options.body),{enabled:true,domains:['api.example','cdn.example']});assert.equal(h.run('httpsDirty'),false);assert.equal(h.element('httpsDomains').value,'api.example, cdn.example');
+});

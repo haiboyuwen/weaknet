@@ -24,6 +24,7 @@ type DeviceInfo struct {
 }
 
 type App struct {
+	https     *HTTPSManager
 	cfg       *Config
 	dnsServer string
 	adb       string
@@ -497,6 +498,7 @@ type LaneView struct {
 }
 
 type State struct {
+	HTTPS        *HTTPSStatus        `json:"https,omitempty"`
 	Config       Params              `json:"config"`
 	Presets      []map[string]string `json:"presets"`
 	Adb          bool                `json:"adb"`
@@ -510,6 +512,10 @@ type State struct {
 
 func (a *App) state(appFilter string) State {
 	st := State{Config: a.cfg.Get(), Adb: a.adb != "", Devices: []DeviceView{}, Lanes: []LaneView{}, Apps: a.conns.apps()}
+	if a.https != nil {
+		v := a.https.status()
+		st.HTTPS = &v
+	}
 	for _, p := range presets {
 		st.Presets = append(st.Presets, map[string]string{"key": p.Key, "label": p.Label})
 	}

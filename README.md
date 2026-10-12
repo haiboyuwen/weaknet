@@ -101,8 +101,8 @@ App 的连接先到中转程序，它查出连接所属的 UID，电脑端再用
 - “事件”显示资源（MP4 / SVGA / 图片 / ZIP 等）的 URL、HTTP 接口地址和请求方法，可按类型、URL、App 或手机关键词筛选。
 - 请求事件显示“请求中 / 请求完成 / 请求失败 / 请求失败（超时）”标签，可按状态筛选；类型和来源收进更多筛选。选定 App 后，事件正文不重复包名；查看全部 App 时可点击包名标签筛选。复制和 TXT 导出仍包含完整包名、当前状态与原因，同一事件原位更新。
   明文 HTTP 在首个响应实际传输到客户端后完成，HTTP 4xx / 5xx、响应截断、连接失败和主动断开标为失败；实际观测到超时才标记超时，卡死模式不会凭计时猜测失败。
-  HTTPS 仅显示“连接中 / 隧道已结束”或连接失败，不能据此判断加密接口成功；App 地址日志没有响应信息，显示“结果未知”。
-- `[代理]` 表示模拟器实际收到的请求：明文 HTTP 显示当前连接首个请求的地址；HTTPS 的 CONNECT 隧道只显示域名和端口，不能读取加密后的路径。
+  未启用解密时，HTTPS 仅显示“连接中 / 隧道已结束”或连接失败，不能据此判断加密接口成功；App 地址日志没有响应信息，显示“结果未知”。
+- `[代理]` 表示模拟器实际收到的请求：明文 HTTP 显示当前连接首个请求的地址；未解密的 HTTPS CONNECT 隧道只显示域名和端口；启用下方的 HTTPS 解密后，可显示每次请求的完整脱敏路径和响应状态。
 - `[App 日志]` 表示通过 USB 读取 App 已有的请求日志，补充 HTTPS 完整路径。不安装 CA、不解密 TLS，也不改动 App 请求。
   这类事件不代表请求一定经过代理、已占用带宽或已经下载完成；缓存命中、失败重试等仍需结合流量和 App 日志判断。
   目前支持 `JschatLog` 下的 `Domain` 最终地址 / 切域重试、`JalsatHttp_Url`、`JschatHttp_Url`，以及标准 `OkHttp` 请求行。
@@ -110,6 +110,30 @@ App 的连接先到中转程序，它查出连接所属的 UID，电脑端再用
   App 关闭日志、未输出支持的请求日志或原生网络栈没有日志时，无法获得完整路径。采集随设备启用弱网开始，关闭弱网、USB 断开或退出时结束。
 - 不记录请求头或请求体；URL 中的用户名、密码、fragment 会移除，所有查询参数值替换为 `REDACTED`，保留域名、路径和参数名方便排查。
 - 页面保留最近 300 条事件，程序退出后清空；终端也会输出相同的脱敏事件。如自行重定向终端输出，请按本地调试日志管理。
+
+## 固定 CA 与 HTTPS 解密
+
+打开“设置 → HTTPS 解密 · 固定 CA”，下载 CA 证书与 Android 配置。CA 第一次启动时自动生成，后续启动复用，不随程序更新改变。默认目录：macOS `~/Library/Application Support/weaknet`，Windows `%AppData%/weaknet`；可通过 `-data-dir` 指定。`ca.pem` 同时含证书和私钥（权限 0600），备份或迁移时需保留；不要提交到 Git 或发给手机。下载接口只导出公开证书，设置中可核对 SHA-256 指纹和有效期。已有身份损坏或过期时启动会报错，不会自动替换。
+
+Android 调试包配置：
+
+1. 将下载的公开证书保存为 `app/src/debug/res/raw/weaknet_ca.crt`。
+2. 将下载的配置保存为 `app/src/debug/res/xml/network_security_config.xml`。已有网络安全配置时，将其中的 `debug-overrides` 合并进去，保留原有规则。
+3. 在调试 Manifest 的 `<application>` 设置 `android:networkSecurityConfig="@xml/network_security_config"`。确保运行的是 `android:debuggable="true"` 的调试构建。
+
+```xml
+<network-security-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="@raw/weaknet_ca" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>
+```
+
+手机信任配置准备好后，填写解密域名并启用、保存；设置持久保存在 `https.json`。域名包含其子域名，支持 IP，不接受 URL、端口或通配符。只对指定目标的新 CONNECT 连接解密，重新打开 App 可建立新连接。默认关闭，其他 HTTPS 仍走原来的隧道。
+
+解密后显示每次 HTTPS 请求的脱敏地址、请求中 / 完成 / 失败 / 超时及 HTTP 状态码；4xx / 5xx 标记失败。仍不保存请求头、请求体或响应体。弱网限制作用在客户端 TLS 字节流上，白名单与黑名单规则保持生效。支持 HTTP/1.1 和 WebSocket 转发；客户端协商 HTTP/1.1，上游可使用 HTTP/2，仍校验上游证书。忽略系统代理的网络栈、QUIC 不在此代理范围。`debug-overrides` 仅在调试构建生效，自定义 OkHttp 等证书固定机制也需在调试构建中适配；信任错误会显示在请求事件中。
 
 ## 多台手机
 

@@ -564,6 +564,10 @@ func (l *Lane) handle(conn net.Conn) {
 	}
 
 	shaped := l.app.shaped(host, pkgs)
+	if method == "CONNECT" && l.app.https.enabledFor(host) {
+		l.handleHTTPS(conn, br, host, port, app, shaped)
+		return
+	}
 	eventID := l.proxyRequestEvent(app, method, target, shaped)
 	key := statKey(app, host)
 	rec := l.app.conns.open(l, app, host, port, shaped)
@@ -607,6 +611,11 @@ func (l *Lane) handle(conn net.Conn) {
 		return
 	}
 
+	l.relayShaped(conn, br, upstream, key, method, initial, rec, onError, host, app)
+}
+
+// Both ordinary tunnels and decrypted HTTPS shape the encrypted client stream.
+func (l *Lane) relayShaped(conn net.Conn, br *bufio.Reader, upstream net.Conn, key, method string, initial []byte, rec *ConnRecord, onError func(error), host, app string) {
 	var once sync.Once
 	onDead := func() {
 		once.Do(func() {
