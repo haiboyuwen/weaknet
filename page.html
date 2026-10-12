@@ -48,13 +48,15 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 @media(max-width:600px){#trendCard{gap:6px 10px;padding:9px 12px}#trendCard .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px}#trendCard .kpi b{font-size:16px}}
 #logTargets label{display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;color:var(--ink)}#logTargets input{width:15px;height:15px;padding:0}.log-lines{max-height:62vh;overflow:auto;margin-top:10px}.log-line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:6px 0;border-top:1px solid var(--line)}.log-line pre{margin:0;font:12px/1.6 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.log-line .tag{margin-right:5px}.log-line button{align-self:start}#logSessionStatus{white-space:pre-wrap;overflow-wrap:anywhere}#logCount{margin-left:auto}
 @media(max-width:600px){#view-logs .head button{font-size:11px;padding:5px 7px}.log-line{grid-template-columns:1fr}.log-line button{justify-self:start}}
+.package-field{position:relative;display:grid;gap:5px;min-width:0}.package-input{display:flex;border:1px solid var(--line);border-radius:7px;background:var(--card)}.package-input:focus-within{outline:2px solid var(--accent);outline-offset:2px}.package-input input{border:0;background:transparent}.package-input input:focus-visible{outline:none}.package-input button{border:0;padding:0 9px;background:transparent;border-radius:0 7px 7px 0}.package-options{position:absolute;top:100%;left:0;right:0;z-index:9;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:7px;background:var(--card);padding:4px;box-shadow:0 8px 24px #0003}.package-options button{display:block;width:100%;border:0;border-radius:4px;text-align:left;padding:7px 9px;overflow-wrap:anywhere;font-size:12px}.package-options button:hover,.package-options button[aria-selected="true"]{background:var(--soft);color:var(--accent)}
+.traffic-item{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-width:0}.traffic-item>.actions{margin:0}.traffic-item>.host-name{min-width:0}
 </style>
 </head>
 <body>
 <header class="top"><div class="shell">
  <div class="brand"><div><h1>弱网模拟器</h1><div class="summary" id="summary">正在连接模拟器…</div></div>
- <div class="row"><button id="pause">暂停自动刷新</button><button class="danger" id="quit">退出并恢复手机</button></div></div>
- <nav class="nav" aria-label="控制台页面"><button data-view="monitor">实时工作台</button><button data-view="history">连接历史</button><button data-view="events">请求事件</button><button data-view="logs">ADB 日志</button><button data-view="settings">设备与配置</button></nav>
+ <div class="row"><button id="openSettings">设置</button><button id="pause">暂停自动刷新</button><button class="danger" id="quit">退出并恢复手机</button></div></div>
+ <nav class="nav" aria-label="控制台页面"><button data-view="monitor">实时工作台</button><button data-view="history">连接历史</button><button data-view="logs">ADB 日志</button></nav>
 </div></header>
 <div class="commandBar" aria-label="全局网络控制"><div class="shell">
  <div class="commandGroup"><span class="commandLabel">档位</span><div class="quickPresets" id="quickPresets"></div></div>
@@ -74,7 +76,7 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
    <div id="laneBody"><div class="kpis"><div class="kpi"><b id="kDown">—</b><span id="kDownLabel">下行 KB/s</span></div><div class="kpi"><b id="kQueue">—</b><span>整机排队 s</span></div><div class="kpi"><b id="kConns">—</b><span>整机连接</span></div><div class="kpi"><b id="kLoss">—</b><span>整机丢包停顿</span></div></div></div>
    <button id="toggleChart" aria-expanded="false" aria-controls="chartPanel">展开曲线</button>
    <div id="chartPanel" hidden><div class="row" id="tabs"></div><canvas id="chart" role="img" aria-label="近三分钟下行速率和整机排队秒数趋势"></canvas><div class="legend"><span><i style="background:var(--accent)"></i><span id="lgDown">下行 KB/s</span></span><span><i style="background:var(--warn)"></i>整机排队秒数（右轴）</span></div></div>
-   <div class="empty" id="noLane">尚未启用弱网。<button class="link" data-view="settings">前往设备与配置</button></div>
+   <div class="empty" id="noLane">尚未启用弱网，请在上方选择手机并启用。</div>
   </div>
   <div class="card"><div class="head"><h2>实时流量</h2><span class="hint">近 5 秒 · 手机 / App / 域名</span></div><div class="scroll"><table><thead><tr><th>手机 / App / 域名</th><th class="n">KB/s</th><th class="n">排队 KB</th><th style="width:15%">速率</th></tr></thead><tbody id="hosts"></tbody></table></div><div class="hint">加名单会同时保存该名单的已有草稿。</div></div>
  </div><div class="stack" id="monitorEvents"></div></section>
@@ -87,39 +89,40 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
    <details><summary>历史与导出说明 · 每页 100 条</summary><div class="hint">翻页后暂停历史自动更新，避免新连接挤动记录。保留最近 20 万条，退出后清空；CSV 导出全部匹配记录。</div></details>
   </div>
  </section>
- <section id="view-events" class="stack" aria-label="请求事件" hidden><div id="eventsSoloSlot">
+ <div id="eventsStaging" hidden>
   <div class="card" id="eventsCard"><div class="head"><h2>请求事件</h2><div class="row"><button id="copyEvents">复制筛选结果</button><button id="exportEvents">导出 TXT</button><button class="mini" id="evClear">清除筛选</button></div></div>
    <div class="filters toolbar"><label>类型<select id="evType"><option value="">全部事件</option><option value="资源">资源请求</option><option value="HTTP">HTTP 接口</option><option value="HTTPS 隧道">HTTPS 隧道</option><option value="system">工具事件</option></select></label><label>地址 / App / 手机<input id="evSearch" placeholder="URL、文件名、App 或手机关键词…"></label><label>来源<select id="evSource"><option value="">全部来源</option><option value="代理">代理</option><option value="App 日志">App 日志</option></select></label><label>状态<select id="evStatus"><option value="">全部状态</option><option value="active">请求中 / 连接中</option><option value="complete">请求完成 / 隧道结束</option><option value="errors">全部失败（含超时）</option><option value="failed">请求失败</option><option value="timeout">请求失败（超时）</option><option value="unknown">结果未知</option></select></label></div>
    <div class="status" id="evCount" role="status"></div><div class="events" id="events"></div>
    <details><summary>状态与地址说明 · 最近 300 条</summary><div class="hint">URL 查询参数已脱敏。明文 HTTP 完成表示首个响应传输结束；HTTPS 标签仅表示隧道状态，App 地址日志显示结果未知。卡死模式保持请求中，实际发生超时才标记超时。</div></details>
   </div>
- </div></section>
+ </div>
  <section id="view-logs" class="stack" aria-label="ADB 日志" hidden>
   <div class="card"><div class="head"><h2>ADB 日志</h2><div class="row"><button id="logStart">开始采集</button><button id="logStop">停止所选</button><button id="logStopAll">停止全部</button></div></div>
    <div class="row toolbar" id="logTargets" aria-label="日志采集手机"></div><div class="status" id="logSessionStatus" role="status"></div><div class="status" id="logActionResult" role="status" hidden></div>
    <div class="hint">勾选目标手机后开始采集，与工作台共用手机选择；切换页面或关闭弱网仍继续。手机断开后自动重试。</div>
   </div>
   <div class="card"><div class="head"><h2>Logcat</h2><div class="row"><button id="logPause">暂停日志刷新</button><button id="logCopy">复制筛选结果</button><button id="logExport">导出 TXT</button><button id="logClear">清空缓存</button></div></div>
-   <div class="filters toolbar"><label>日志手机<select id="logSerial"><option value="">全部手机</option></select></label><label>App 包名<input id="logApp" list="pkgList" placeholder="留空查看全部进程"></label><label>最低级别<select id="logLevel"><option value="">全部级别</option><option value="D">Debug+</option><option value="I">Info+</option><option value="W">Warn+</option><option value="E">Error+</option><option value="F">Fatal</option></select></label><label>关键词 / Tag / PID<input id="logSearch" placeholder="timeout、AndroidRuntime…"></label></div>
+   <div class="filters toolbar"><label>日志手机<select id="logSerial"><option value="">全部手机</option></select></label><div class="package-field" id="logPackageField"><label for="logApp">App 包名</label><div class="package-input"><input id="logApp" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="logPkgOptions" autocomplete="off" placeholder="留空查看全部进程"><button id="logPkgToggle" aria-label="选择 App 包名" aria-expanded="false" aria-controls="logPkgOptions">▾</button></div><div class="package-options" id="logPkgOptions" role="listbox" aria-label="App 包名候选" hidden></div></div><label>最低级别<select id="logLevel"><option value="">全部级别</option><option value="D">Debug+</option><option value="I">Info+</option><option value="W">Warn+</option><option value="E">Error+</option><option value="F">Fatal</option></select></label><label>关键词 / Tag / PID<input id="logSearch" placeholder="timeout、AndroidRuntime…"></label></div>
    <div class="row"><button class="mini" id="logUseApp">使用操作 App 包名</button><button class="mini" id="logReset">清除筛选</button><span class="status" id="logCount" role="status"></span></div>
    <div class="status bad" id="logError" role="status"></div><div class="log-lines" id="logLines" aria-label="日志内容"></div>
    <div class="hint">最新在前，最多保留所有手机最近 2000 条。App 归属依赖进程 PID，未识别时可用关键词 / PID 查找。清空仅清所选手机的本工具缓存，不清手机 Logcat；复制导出按采集顺序，单条超过 8 KB 会截断。</div>
   </div>
  </section>
- <section id="view-settings" class="grid" aria-label="设备与配置" hidden>
-  <div class="stack">
+ <div id="settingsContent" hidden>
+  <div class="stack" id="settingsExtras">
    <div class="card"><h2>手机</h2><div id="devices"></div><div class="hint">勾选手机后，在设备快捷操作中统一执行；每台手机独立带宽，参数共用。</div></div>
    <div class="card"><h2>测试方案</h2><label>已保存的方案<select id="profiles"><option value="">选择方案…</option></select></label><div class="row toolbar"><button id="applyProfile">应用</button><button id="saveProfile">保存当前配置</button><button id="deleteProfile">删除</button></div><div class="row"><button id="exportProfiles">导出 JSON</button><button id="importProfiles">导入 JSON</button><input id="profileFile" type="file" accept=".json,application/json" hidden></div><div class="hint">方案保存在当前浏览器，包含参数、网络状态和黑白名单。应用前会展示范围并确认；导出可迁移到其他电脑。</div></div>
   </div>
   <div class="stack">
-   <div id="settingsTools"><div class="card" id="deviceTools"><div class="head"><h2>设备快捷操作</h2><span class="status" id="toolDeviceStatus"></span></div><div class="filters" style="grid-template-columns:1fr 1.5fr"><div class="device-picker-field"><span>操作手机</span><details class="device-picker" id="toolDevicePicker"><summary id="toolSelection">选择手机…</summary><div class="device-picker-menu"><div id="toolDeviceOptions"></div><div class="row toolbar"><button data-tool-select="all">全选空闲手机</button><button data-tool-select="none">取消全选</button></div></div></details></div><label>操作 App 包名<input id="clrPkg" list="pkgList" placeholder="com.example.app"></label></div><datalist id="pkgList"></datalist><div class="row toolbar"><button class="danger" id="clrLaunchBtn">清空并启动</button><button class="danger" id="clrBtn">清空数据</button><span class="row" id="toolDeviceActions"></span></div><div class="status" id="clrMsg" role="status"></div><div class="hint">操作仅针对勾选手机，共用一组按钮；清空会清除该 App 的登录状态、缓存和配置，执行前会确认。</div></div></div>
+   <div id="settingsTools"><div class="card" id="deviceTools"><div class="head"><h2>设备快捷操作</h2><span class="status" id="toolDeviceStatus"></span></div><div class="filters" style="grid-template-columns:1fr 1.5fr"><div class="device-picker-field"><span>操作手机</span><details class="device-picker" id="toolDevicePicker"><summary id="toolSelection">选择手机…</summary><div class="device-picker-menu"><div id="toolDeviceOptions"></div><div class="row toolbar"><button data-tool-select="all">全选空闲手机</button><button data-tool-select="none">取消全选</button></div></div></details></div><div class="package-field" id="toolPackageField"><label for="clrPkg">操作 App 包名</label><div class="package-input"><input id="clrPkg" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="toolPkgOptions" autocomplete="off" placeholder="com.example.app"><button id="toolPkgToggle" aria-label="选择操作 App 包名" aria-expanded="false" aria-controls="toolPkgOptions">▾</button></div><div class="package-options" id="toolPkgOptions" role="listbox" aria-label="操作 App 包名候选" hidden></div></div></div><div class="row toolbar"><button class="danger" id="clrLaunchBtn">清空并启动</button><button class="danger" id="clrBtn">清空数据</button><span class="row" id="toolDeviceActions"></span></div><div class="status" id="clrMsg" role="status"></div><div class="hint">操作仅针对勾选手机，共用一组按钮；清空会清除该 App 的登录状态、缓存和配置，执行前会确认。</div></div></div>
    <div id="settingsScope"><div class="card" id="scopeCard"><div class="head"><h2>作用范围</h2><label class="switch"><input type="checkbox" id="blOn">只对黑名单生效</label></div><div class="scope" id="scope"></div><div class="list-editors" id="scopeDetails">
 <div class="list-editor"><label for="blacklist">黑名单</label><textarea id="blacklist" rows="1" aria-label="黑名单域名或 App 包名" placeholder="api.example.com,com.example.app" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveBlacklist" aria-label="保存黑名单">保存</button><button id="resetBlacklist" aria-label="撤销黑名单草稿">撤销</button><button id="copyBlacklist" aria-label="复制黑名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="blacklistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="blacklistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
 <div class="list-editor"><label for="whitelist">白名单</label><textarea id="whitelist" rows="1" aria-label="白名单域名或 App 包名" placeholder="googleapis.com,com.android.vending" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveWhitelist" aria-label="保存白名单">保存</button><button id="resetWhitelist" aria-label="撤销白名单草稿">撤销</button><button id="copyWhitelist" aria-label="复制白名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="whitelistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="whitelistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
 </div><div class="hint warn" id="listConflict" hidden></div></div></div>
   </div>
- </section>
+ </div>
 </main>
+<dialog id="settingsDialog"><div class="head"><h2>设置</h2><button data-close="settingsDialog">关闭</button></div><div id="settingsBody" class="stack"></div></dialog>
 <div id="toast" class="toast" role="status" hidden></div>
 <dialog id="detailDialog"><div class="head"><h2>连接详情</h2><button data-close="detailDialog" aria-label="关闭详情">关闭</button></div><pre class="detail" id="detailText"></pre><button id="copyDetail">复制完整详情</button></dialog>
 <dialog id="copyDialog" class="copy-fallback"><div class="head"><h2>手动复制</h2><button data-close="copyDialog">关闭</button></div><p class="hint">浏览器未允许自动复制，内容已选中，请按 Ctrl+C / ⌘C。</p><textarea id="copyText" readonly aria-label="待复制内容"></textarea></dialog>
@@ -137,7 +140,7 @@ const F = [['down_kbps','下行 kbps',0,30000,50],['up_kbps','上行 kbps',0,100
 const PKG_RE = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+)+$/;
 const ST = {active:['进行中','on'],ok:['完成',''],failed:['失败','bad'],rejected:['断网拒绝','warn']};
 let state=null, displayState=null, stopped=false, paused=false, pauseSeq=0, selectedLane=store.get('lane');
-let view=['monitor','history','events','logs','settings'].includes(store.get('view'))?store.get('view'):'monitor';
+let view=['monitor','history','logs'].includes(store.get('view'))?store.get('view'):'monitor';
 let fSerial=store.get('serial'), fApp=store.get('app'), fHost=store.get('host');
 let manualDisplay=false, stateBusy=false, configEpoch=0, configChain=Promise.resolve(), pending={}, paramTimer=null;
 const savingKeys=new Map(), latestParams=new Map(), dirty={blacklist:false,whitelist:false};
@@ -171,6 +174,8 @@ function ask(message,withName=false){
  $('actionName').hidden=!withName;$('actionInput').required=withName;$('actionInput').value='';$('actionDialog').returnValue='';
  return new Promise(resolve=>{actionResolve=value=>resolve(value);$('actionDialog').showModal();if(withName)$('actionInput').focus()});
 }
+$('settingsBody').appendChild($('settingsExtras'));
+$('openSettings').onclick=()=>$('settingsDialog').showModal();
 $('actionCancel').onclick=()=>$('actionDialog').close('cancel');
 $('actionDialog').addEventListener('close',()=>{const resolve=actionResolve;actionResolve=null;if(resolve)resolve($('actionDialog').returnValue==='ok'?($('actionName').hidden?true:$('actionInput').value.trim()):null)});
 const confirmAction=async message=>(await ask(message))===true;
@@ -178,11 +183,11 @@ const askName=message=>ask(message,true);
 function download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function hasSelection(id){const selection=window.getSelection();return selection&&!selection.isCollapsed&&$(id).contains(selection.anchorNode)}
 function selectView(next){
- if(!['monitor','history','events','logs','settings'].includes(next))return;
+ if(!['monitor','history','logs'].includes(next))return;
  view=next;store.set('view',view);
- if(view==='monitor'||view==='events')$(view==='monitor'?'monitorEvents':'eventsSoloSlot').appendChild($('eventsCard'));
- $(view==='monitor'?'monitorDeviceTools':'settingsTools').appendChild($('deviceTools'));$('monitorTools').hidden=view!=='monitor';
- $(view==='monitor'?'monitorScope':'settingsScope').appendChild($('scopeCard'));
+ $('monitorEvents').appendChild($('eventsCard'));
+ $('monitorDeviceTools').appendChild($('deviceTools'));$('monitorTools').hidden=view!=='monitor';
+ $('monitorScope').appendChild($('scopeCard'));
  document.querySelectorAll('[id^="view-"]').forEach(node=>node.hidden=node.id!=='view-'+view);
  document.querySelectorAll('nav [data-view]').forEach(button=>{button.classList.toggle('on',button.dataset.view===view);button.setAttribute('aria-current',button.dataset.view===view?'page':'false')});
  $('globalFilters').hidden=!['monitor','history'].includes(view);
@@ -313,8 +318,15 @@ function renderClear(){
  const action=(name,label)=>`<button data-tool-action="${name}" ${disabled?'disabled':''}>${label}</button>`;
  html('toolDeviceActions',(enabled<selected.length||!selected.length?action('on','启用弱网'):'')+(enabled?action('off','关闭弱网'):'')+action('reconnect','重启 Wi-Fi')+(selected.some(d=>d.foreign)?action('off','清除代理'):''));
  $('toolDeviceStatus').textContent=toolSubmitting?'正在提交…':selected.length?`已选 ${selected.length} 台 · ${enabled} 台弱网${busy?' · '+busy+' 台忙碌':''}${offline?' · '+offline+' 台不可用':''}`:'未选择手机';
- const pkgs=[...new Set(state.apps.map(a=>a.app.replace(/ \(\+\d+\)$/,'')).filter(a=>PKG_RE.test(a)))];html('pkgList',pkgs.map(p=>`<option value="${esc(p)}">`).join(''));
+ renderPackageOptions();
 }
+const knownPackages=new Set();
+function packageCandidates(){
+ const packages=[...(state?.apps||[]).map(a=>a.app.replace(/ \(\+\d+\)$/,'')),...(logData?.rows||[]).map(r=>(r.app||'').split(':')[0]),$('clrPkg').value.trim()];
+ for(const pkg of packages)if(PKG_RE.test(pkg))knownPackages.add(pkg);
+ return [...knownPackages].sort();
+}
+function renderPackageOptions(){packageCandidates()} // 仅积累已识别包名，轮询不改候选 DOM。
 async function submitToolAction(action,body,serials){
  if(toolSubmitting)return;toolSubmitting=true;renderClear();
  try{
@@ -370,7 +382,7 @@ function renderHosts(){
   const device=lanes.length>1?`<tr class="devrow"><td>${esc(items[0].device)} <span class="status">${esc(serial)}</span></td><td class="n">${sum(items).toFixed(1)}</td><td></td><td></td></tr>`:'';
   return device+group(items,h=>h.app||'-').map(([app,hosts])=>{
    const pkg=app.replace(/ \(\+\d+\)$/,''),queue=hosts.reduce((total,h)=>total+(h.bypass?0:h.queued_kb),0);
-   return `<tr class="grp"><td><span class="host-name">${esc(app==='-'?'（未识别）':app)}</span><div class="actions"><button class="mini" data-app="${esc(app)}" data-serial="${esc(serial)}">只看它</button>${app==='-'?'':copyButton(pkg,'复制包名')}${PKG_RE.test(pkg)?listActions(pkg):''}</div></td><td class="n">${sum(hosts).toFixed(1)}</td><td class="n">${queue}</td><td></td></tr>`+hosts.map(h=>`<tr class="sub"><td><span class="host-name">${esc(h.host)}</span><div class="actions">${copyButton(h.host,'复制域名')}<button class="mini" data-host="${esc(h.host)}">筛选</button>${listActions(h.host)}</div></td><td class="n">${h.kbs}</td><td class="n">${h.bypass?'<span class="tag">直连</span>':h.queued_kb}</td><td><div class="bar" style="width:${100*h.kbs/max}%"></div></td></tr>`).join('');
+   return `<tr class="grp"><td><div class="traffic-item"><span class="host-name">${esc(app==='-'?'（未识别）':app)}</span><div class="actions"><button class="mini" data-app="${esc(app)}" data-serial="${esc(serial)}">只看它</button>${app==='-'?'':copyButton(pkg,'复制包名')}${PKG_RE.test(pkg)?listActions(pkg):''}</div></div></td><td class="n">${sum(hosts).toFixed(1)}</td><td class="n">${queue}</td><td></td></tr>`+hosts.map(h=>`<tr class="sub"><td><span class="host-name">${esc(h.host)}</span><div class="actions">${copyButton(h.host,'复制域名')}<button class="mini" data-host="${esc(h.host)}">筛选</button>${listActions(h.host)}</div></td><td class="n">${h.kbs}</td><td class="n">${h.bypass?'<span class="tag">直连</span>':h.queued_kb}</td><td><div class="bar" style="width:${100*h.kbs/max}%"></div></td></tr>`).join('');
   }).join('');
  }).join(''));
 }
@@ -465,7 +477,39 @@ $('profileFile').onchange=async e=>{
   incoming.forEach(p=>map.set(p.name,p));const next=validateProfiles([...map.values()]);if(persistProfiles(next))toast('方案已导入');
  }catch(error){toast('导入失败：'+error.message,true)}finally{e.target.value=''}
 };
+
 let logData=null,logBusy=false,logVersion=0,logsPaused=false,logTimer=null,logSubmitting=false;
+const packagePickers={
+ logApp:{field:'logPackageField',toggle:'logPkgToggle',options:'logPkgOptions',all:true,open:false,index:-1,choices:[]},
+ clrPkg:{field:'toolPackageField',toggle:'toolPkgToggle',options:'toolPkgOptions',all:false,open:false,index:-1,choices:[]}
+};
+function renderPackageMenu(input){
+ const p=packagePickers[input];
+ html(p.options,p.choices.map((pkg,i)=>`<button type="button" role="option" tabindex="-1" id="${p.options}${i}" aria-selected="${i===p.index}" data-package="${esc(pkg)}">${esc(pkg||'全部进程')}</button>`).join('')||'<div class="hint">没有匹配包名，可直接输入。</div>');
+ if(p.index>=0)$(input).setAttribute('aria-activedescendant',p.options+p.index);else $(input).removeAttribute('aria-activedescendant');
+}
+function openPackagePicker(input){
+ const p=packagePickers[input],query=$(input).value.trim().toLowerCase();p.choices=[...(p.all?['']:[]),...packageCandidates().filter(pkg=>!query||pkg.toLowerCase().includes(query))];p.index=-1;p.open=true;
+ renderPackageMenu(input);$(p.options).hidden=false;$(input).setAttribute('aria-expanded','true');$(p.toggle).setAttribute('aria-expanded','true');
+}
+function closePackagePicker(input){const p=packagePickers[input];p.open=false;p.index=-1;$(p.options).hidden=true;$(input).setAttribute('aria-expanded','false');$(p.toggle).setAttribute('aria-expanded','false');$(input).removeAttribute('aria-activedescendant')}
+function selectPackage(input,pkg){
+ if(PKG_RE.test(pkg))knownPackages.add(pkg);$(input).value=pkg;$(input).focus();closePackagePicker(input);
+ if(input==='logApp'){clearTimeout(logTimer);logFiltersChanged()}else store.set('clr_pkg',pkg);
+}
+const openLogPackages=()=>openPackagePicker('logApp'),closeLogPackages=()=>closePackagePicker('logApp'),selectLogPackage=pkg=>selectPackage('logApp',pkg);
+for(const [input,p] of Object.entries(packagePickers)){
+ $(p.toggle).onclick=()=>{if(p.open)closePackagePicker(input);else {$(input).focus();openPackagePicker(input)}};
+ $(input).onfocus=()=>openPackagePicker(input);
+ $(p.options).onclick=e=>{const option=e.target.closest('[data-package]');if(option)selectPackage(input,option.dataset.package)};
+ $(input).onkeydown=e=>{
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!p.open)openPackagePicker(input);const n=p.choices.length;if(n){p.index=(p.index+(e.key==='ArrowDown'?1:p.index<0?0:-1)+n)%n;renderPackageMenu(input)}return}
+  if(e.key==='Enter'&&p.open&&p.index>=0){e.preventDefault();selectPackage(input,p.choices[p.index]);return}
+  if(e.key==='Escape'||e.key==='Tab')closePackagePicker(input);
+ };
+}
+$('clrPkg').oninput=()=>openPackagePicker('clrPkg');
+for(const type of ['click','focusin'])document.addEventListener(type,e=>{for(const [input,p] of Object.entries(packagePickers))if(p.open&&!$(p.field).contains(e.target))closePackagePicker(input)});
 const logLabels={connecting:'连接中',running:'采集中',retrying:'中断重试',stopped:'已停止'};
 function renderLogTargets(){
  if(!state)return;
@@ -493,15 +537,15 @@ async function refreshLogs(force=false){
  logBusy=true;const version=logVersion;
  try{const data=await request('/api/logs?'+logQuery());if(version!==logVersion)return;
   if(!logsPaused||force||!logData)logData=data;else logData={...logData,sessions:data.sessions};
-  $('logError').textContent='';renderLogTargets();renderLogs();
+  $('logError').textContent='';renderLogTargets();renderPackageOptions();renderLogs();
  }catch(error){if(version===logVersion)$('logError').textContent='日志刷新失败：'+error.message+'；将自动重试。'}
  finally{logBusy=false;if(version!==logVersion)refreshLogs(true)}
 }
 function logFiltersChanged(){logVersion++;logData=null;html('logLines','');$('logCount').textContent='正在加载…';refreshLogs(true)}
 for(const id of ['logSerial','logLevel'])$(id).onchange=logFiltersChanged;
-for(const id of ['logApp','logSearch'])$(id).oninput=()=>{clearTimeout(logTimer);logTimer=setTimeout(logFiltersChanged,250)};
-$('logReset').onclick=()=>{clearTimeout(logTimer);for(const id of ['logSerial','logApp','logLevel','logSearch'])$(id).value='';logFiltersChanged()};
-$('logUseApp').onclick=()=>{clearTimeout(logTimer);$('logApp').value=$('clrPkg').value.trim();logFiltersChanged()};
+for(const id of ['logApp','logSearch'])$(id).oninput=()=>{if(id==='logApp')openLogPackages();clearTimeout(logTimer);logTimer=setTimeout(logFiltersChanged,250)};
+$('logReset').onclick=()=>{closeLogPackages();clearTimeout(logTimer);for(const id of ['logSerial','logApp','logLevel','logSearch'])$(id).value='';logFiltersChanged()};
+$('logUseApp').onclick=()=>selectLogPackage($('clrPkg').value.trim());
 $('logPause').onclick=()=>{logsPaused=!logsPaused;$('logPause').textContent=logsPaused?'恢复日志刷新':'暂停日志刷新';if(!logsPaused)refreshLogs(true);renderLogs()};
 $('logCopy').onclick=()=>copyText((logData?.rows||[]).slice().reverse().map(logText).join('\n'));
 $('logExport').onclick=()=>{if(!logData?.rows.length){toast('没有可导出的日志');return}download('weaknet-adb-'+Date.now()+'.txt',logData.rows.slice().reverse().map(logText).join('\n'),'text/plain;charset=utf-8')};
@@ -522,7 +566,7 @@ function render(){
  const c=state.config;
  $('summary').textContent=`${state.lanes.length} 台手机弱网中 · 下行 ${c.down_kbps?c.down_kbps+' kbps':'不限'} · 上行 ${c.up_kbps?c.up_kbps+' kbps':'不限'} · RTT ≈ ${c.delay_ms*2} ms · ${c.outage==='reset'?'已断网':c.outage==='stall'?'卡死中':'正常'}${c.blacklist_on?' · 仅黑名单':''}`;
  renderConfig();renderClear();renderDevices();renderFilters();renderLogTargets();
- if(view==='monitor'){renderLane();renderHosts();renderEvents()}if(view==='events')renderEvents();
+ if(view==='monitor'){renderLane();renderHosts();renderEvents()}
  $('pauseInfo').hidden=!paused;if(paused)$('pauseInfo').textContent=`自动刷新已暂停，后台采集继续，手动切换筛选仍可查询。暂停后新增 ${Math.max(0,state.event_seq-pauseSeq)} 条事件；设备状态和配置仍实时更新。`;
 }
 async function refresh(){

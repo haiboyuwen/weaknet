@@ -71,9 +71,11 @@ test('正在保存的参数失败时，不继续应用其他配置',async()=>{
  const first=h.run('flushParams()');await new Promise(resolve=>setImmediate(resolve));const change=h.run("changeConfig({outage:'stall'})");
  finish({ok:false,text:async()=>JSON.stringify({error:'failed'})});await first;assert.equal(await change,false);assert.equal(h.calls.length,1);
 });
-test('工作台与专注事件页共享同一面板，切页保留事件筛选',()=>{
- const h=setup();h.element('evSearch').value='demo.svga';h.run("selectView('monitor')");assert.equal(h.element('eventsCard').parentElement,h.element('monitorEvents'));
- h.run("selectView('events')");assert.equal(h.element('eventsCard').parentElement,h.element('eventsSoloSlot'));assert.equal(h.element('evSearch').value,'demo.svga');
+test('顶部只保留三个工作页面，请求事件留在工作台，设置独立打开',()=>{
+ const h=setup();const nav=page.match(/<nav[\s\S]*?<\/nav>/)[0];assert.deepEqual([...nav.matchAll(/data-view="(.*?)"/g)].map(m=>m[1]),['monitor','history','logs']);
+ h.element('evSearch').value='demo.svga';h.run("selectView('monitor');selectView('history');selectView('monitor')");
+ assert.equal(h.element('eventsCard').parentElement,h.element('monitorEvents'));assert.equal(h.element('evSearch').value,'demo.svga');
+ h.run("$('openSettings').onclick()");assert.equal(h.run('view'),'monitor');
 });
 test('全局参数合并保存，并在当前页显示失败重试',async()=>{
  const h=setup();h.element('q_down_kbps').onchange({target:{value:'888'}});await h.run('flushParams()');assert.equal(JSON.parse(h.calls[0].options.body).down_kbps,888);
@@ -88,7 +90,7 @@ test('请求状态过滤、标签及复制内容保持一致，隧道与日志�
 test('工作台共用设备操作和作用范围面板，切页不会丢失包名、目标手机或名单草稿',()=>{
  const h=setup();h.run("toolSerials=new Set(['phoneA']);toolSelectionReady=true");h.element('clrPkg').value='com.example.app';h.element('blacklist').value='api.example.com';h.run("draftChanged('blacklist');selectView('monitor')");
  assert.equal(h.element('deviceTools').parentElement,h.element('monitorDeviceTools'));assert.equal(h.element('scopeCard').parentElement,h.element('monitorScope'));
- h.run("selectView('settings');selectView('monitor')");assert.equal(h.element('clrPkg').value,'com.example.app');assert.equal(h.element('blacklist').value,'api.example.com');
+ h.run("selectView('history');selectView('monitor')");assert.equal(h.element('clrPkg').value,'com.example.app');assert.equal(h.element('blacklist').value,'api.example.com');
  h.state.devices=[{serial:'phoneA',state:'device',model:'phone',enabled:true,busy:'清空数据'}];h.run('renderClear()');assert.equal(h.element('clrBtn').disabled,true);assert.match(h.element('toolDeviceActions').innerHTML,/重启 Wi-Fi/);assert.match(h.element('toolDeviceActions').innerHTML,/disabled/);
 });
 
@@ -104,7 +106,7 @@ test('批量清空一次确认全部目标，取消不发送；忙碌或离线�
  h.element('clrPkg').value='com.example.app';await h.run('clearApp(true)');assert.equal(h.calls.length,0);assert.match(h.run('globalMessage'),/phone A（A）/);assert.match(h.run('globalMessage'),/phone B（B）/);
  h.run('ask=async()=>true');await h.run('clearApp(true)');const calls=h.calls.filter(c=>c.url.startsWith('/api/device/'));assert.equal(calls.length,2);assert.deepEqual(JSON.parse(calls[1].options.body),{pkg:'com.example.app',launch:true});
  h.state.devices[1].busy='清空';h.run('state=testState;renderClear()');assert.equal(h.element('clrBtn').disabled,true);assert.equal(h.run('toolTargets()'),null);
- h.state.devices.splice(1);assert.equal(h.run('toolTargets()'),null);h.run("selectView('settings');selectView('monitor')");assert.equal(h.run('toolSerials.size'),2);
+ h.state.devices.splice(1);assert.equal(h.run('toolTargets()'),null);h.run("selectView('history');selectView('monitor')");assert.equal(h.run('toolSerials.size'),2);
 });
 test('日志暂停只冻结内容，采集状态仍更新，恢复后可复制筛选结果',async()=>{
  const h=setup();h.run("view='logs';let copiedLog='';navigator.clipboard.writeText=async text=>{copiedLog=text}");
@@ -132,4 +134,22 @@ test('日志采集复用多手机选择，逐台报告失败，停止全部包�
  await h.run("logAction('start')");assert.ok(h.calls.some(c=>c.url==='/api/logs/one/start'));assert.ok(h.calls.some(c=>c.url==='/api/logs/two/start'));assert.match(h.element('logActionResult').textContent,/Phone two（two）：device offline/);
  h.run("toolSerials=new Set(['one'])");await h.run("logAction('stop',true)");assert.ok(h.calls.some(c=>c.url==='/api/logs/three/stop'));
  h.element('logApp').value='com.example';h.element('logSearch').value='timeout';h.element('logLevel').value='W';assert.match(h.run('logQuery().toString()'),/app=com.example&level=W&q=timeout/);
+});
+test('两处包名选择共用组件，操作区轮询不重建候选，选择后保存包名',()=>{
+ const h=setup();h.state.apps=[{app:'com.zeta.app'},{app:'com.alpha.app'}];h.element('clrPkg').value='';h.run("openPackagePicker('clrPkg')");const old=h.element('toolPkgOptions').innerHTML;
+ h.state.apps.reverse();h.state.apps.push({app:'com.new.app'});h.run('renderPackageOptions();renderClear()');assert.equal(h.element('toolPkgOptions').innerHTML,old);
+ h.run("$('clrPkg').onkeydown({key:'ArrowDown',preventDefault(){}});$('clrPkg').onkeydown({key:'Enter',preventDefault(){}})");assert.equal(h.element('clrPkg').value,'com.alpha.app');assert.equal(h.storage.get('wn_clr_pkg'),'com.alpha.app');assert.equal(h.element('toolPkgOptions').hidden,true);
+ h.run('renderClear()');assert.equal(h.element('clrPkg').value,'com.alpha.app');
+ h.element('clrPkg').value='unmatched';h.run("$('clrPkg').oninput();$('clrPkg').onkeydown({key:'ArrowDown',preventDefault(){}})");assert.match(h.element('toolPkgOptions').innerHTML,/没有匹配/);h.run("$('clrPkg').onkeydown({key:'Escape'})");assert.equal(h.element('toolPkgOptions').hidden,true);
+});
+test('日志包名下拉展开时轮询不重建候选，键盘确认后保留筛选',async()=>{
+ const h=setup();h.state.apps=[{app:'com.first.app'}];h.run("view='logs';logData={rows:[{app:'com.logs.only:worker'}],total:1,sessions:[]};openLogPackages()");const old=h.element('logPkgOptions').innerHTML;
+ h.state.apps=[{app:'com.new.app'}];h.setHandler(()=>h.response({rows:[],total:0,sessions:[]}));await h.run('refreshLogs()');h.run('renderClear()');
+ assert.equal(h.element('logPkgOptions').innerHTML,old);assert.equal(h.run('packagePickers.logApp.open'),true);
+ h.run("$('logApp').onkeydown({key:'ArrowDown',preventDefault(){}});$('logApp').onkeydown({key:'ArrowDown',preventDefault(){}});$('logApp').onkeydown({key:'Enter',preventDefault(){}})");
+ assert.equal(h.element('logApp').value,'com.first.app');assert.equal(h.element('logPkgOptions').hidden,true);
+ await new Promise(resolve=>setImmediate(resolve));await h.run('refreshLogs()');assert.equal(h.element('logApp').value,'com.first.app');assert.ok(h.calls.some(c=>c.url.includes('app=com.first.app')));
+ h.element('logApp').value='com.first';h.run('openLogPackages()');assert.match(h.element('logPkgOptions').innerHTML,/com.first.app/);assert.doesNotMatch(h.element('logPkgOptions').innerHTML,/data-package="com.first"/);
+ h.element('logApp').value='logs';h.run('logData={rows:[{app:"com.logs.only:worker"}],total:1,sessions:[]};openLogPackages()');assert.match(h.element('logPkgOptions').innerHTML,/com.logs.only/);assert.doesNotMatch(h.element('logPkgOptions').innerHTML,/com.new.app/);
+ h.run("$('logApp').onkeydown({key:'Escape'})");assert.equal(h.element('logPkgOptions').hidden,true);
 });
