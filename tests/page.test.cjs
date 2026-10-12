@@ -106,3 +106,30 @@ test('批量清空一次确认全部目标，取消不发送；忙碌或离线�
  h.state.devices[1].busy='清空';h.run('state=testState;renderClear()');assert.equal(h.element('clrBtn').disabled,true);assert.equal(h.run('toolTargets()'),null);
  h.state.devices.splice(1);assert.equal(h.run('toolTargets()'),null);h.run("selectView('settings');selectView('monitor')");assert.equal(h.run('toolSerials.size'),2);
 });
+test('日志暂停只冻结内容，采集状态仍更新，恢复后可复制筛选结果',async()=>{
+ const h=setup();h.run("view='logs';let copiedLog='';navigator.clipboard.writeText=async text=>{copiedLog=text}");
+ const row={id:1,device:'Phone',serial:'one',time:'10-12 01:00:00',pid:'123',tid:'124',level:'E',tag:'Crash',app:'com.example',message:'timeout <script>'};
+ let data={rows:[row],total:1,sessions:[{serial:'one',device:'Phone',enabled:true,status:'running'}]};h.setHandler(()=>h.response(data));await h.run('refreshLogs()');
+ assert.match(h.element('logLines').innerHTML,/&lt;script&gt;/);h.run("$('logPause').onclick()");
+ data={rows:[{...row,id:2,message:'new'}],total:2,sessions:[{serial:'one',device:'Phone',enabled:true,status:'retrying',error:'offline'}]};await h.run('refreshLogs()');
+ assert.equal(h.run('logData.rows[0].id'),1);assert.match(h.element('logSessionStatus').textContent,/offline/);
+ h.run("$('logPause').onclick()");await new Promise(resolve=>setImmediate(resolve));assert.equal(h.run('logData.rows[0].id'),2);
+ await h.run("$('logCopy').onclick()");assert.match(h.run('copiedLog'),/com.example: new/);
+});
+test('日志筛选切换拒绝旧响应，清空只发送所选手机范围',async()=>{
+ const h=setup(),requests=[];h.run("view='logs'");h.setHandler(()=>new Promise(resolve=>requests.push(resolve)));
+ const old=h.run('refreshLogs()');h.element('logSerial').value='two';h.run('logFiltersChanged()');
+ requests[0](h.response({rows:[{id:99}],sessions:[],total:1}));await old;assert.match(h.calls[1].url,/serial=two/);
+ requests[1](h.response({rows:[],sessions:[],total:0}));await new Promise(resolve=>setImmediate(resolve));assert.equal(h.run('logData.rows.length'),0);
+ h.setHandler(url=>h.response(url.startsWith('/api/logs/clear')?{ok:true}:{rows:[],sessions:[],total:0}));await h.run("$('logClear').onclick()");
+ assert.ok(h.calls.some(c=>c.url==='/api/logs/clear?serial=two'));assert.equal(h.calls.some(c=>c.url.includes('/api/device/')),false);
+});
+test('日志采集复用多手机选择，逐台报告失败，停止全部包含未勾选采集手机',async()=>{
+ const h=setup();h.state.adb=true;h.state.devices=[{serial:'one',model:'Phone one',state:'device'},{serial:'two',model:'Phone two',state:'device'}];
+ h.run("view='logs';toolSerials=new Set(['one','two'])");
+ const sessions=[{serial:'one',device:'Phone one',enabled:true,status:'running'},{serial:'three',device:'Phone three',enabled:true,status:'retrying'}];
+ h.setHandler(url=>url==='/api/logs/two/start'?{ok:false,text:async()=>'device offline'}:h.response(url.startsWith('/api/logs?')?{rows:[],total:0,sessions}:{ok:true}));
+ await h.run("logAction('start')");assert.ok(h.calls.some(c=>c.url==='/api/logs/one/start'));assert.ok(h.calls.some(c=>c.url==='/api/logs/two/start'));assert.match(h.element('logActionResult').textContent,/Phone two（two）：device offline/);
+ h.run("toolSerials=new Set(['one'])");await h.run("logAction('stop',true)");assert.ok(h.calls.some(c=>c.url==='/api/logs/three/stop'));
+ h.element('logApp').value='com.example';h.element('logSearch').value='timeout';h.element('logLevel').value='W';assert.match(h.run('logQuery().toString()'),/app=com.example&level=W&q=timeout/);
+});

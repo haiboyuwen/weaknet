@@ -46,13 +46,15 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 #trendCard{display:grid;grid-template-columns:minmax(150px,1fr) minmax(0,3fr) auto;gap:10px 18px;align-items:center;padding:10px 14px}#trendCard h2{margin:0;font-size:13px}#chartTitle{margin:0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#laneBody{min-width:0}#trendCard .kpis{margin:0;gap:14px}#trendCard .kpi{display:flex;align-items:baseline;gap:5px;padding:0;background:transparent;white-space:nowrap}#trendCard .kpi b{font-size:18px}#trendCard .kpi span{font-size:11px}#toggleChart{font-size:12px;padding:4px 8px}#chartPanel{grid-column:1/-1;border-top:1px solid var(--line);padding-top:10px}#tabs{margin-bottom:6px}#tabs:empty{display:none}#trendCard #noLane{padding:0;text-align:left}
 @media(max-width:960px){#trendCard{grid-template-columns:minmax(0,1fr) auto}#laneBody{grid-column:1/-1;grid-row:2}#toggleChart{grid-column:2;grid-row:1}#trendCard .kpi{justify-content:flex-start}#trendCard #noLane{grid-column:1/-1}}
 @media(max-width:600px){#trendCard{gap:6px 10px;padding:9px 12px}#trendCard .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px}#trendCard .kpi b{font-size:16px}}
+#logTargets label{display:flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;color:var(--ink)}#logTargets input{width:15px;height:15px;padding:0}.log-lines{max-height:62vh;overflow:auto;margin-top:10px}.log-line{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:6px 0;border-top:1px solid var(--line)}.log-line pre{margin:0;font:12px/1.6 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.log-line .tag{margin-right:5px}.log-line button{align-self:start}#logSessionStatus{white-space:pre-wrap;overflow-wrap:anywhere}#logCount{margin-left:auto}
+@media(max-width:600px){#view-logs .head button{font-size:11px;padding:5px 7px}.log-line{grid-template-columns:1fr}.log-line button{justify-self:start}}
 </style>
 </head>
 <body>
 <header class="top"><div class="shell">
  <div class="brand"><div><h1>弱网模拟器</h1><div class="summary" id="summary">正在连接模拟器…</div></div>
  <div class="row"><button id="pause">暂停自动刷新</button><button class="danger" id="quit">退出并恢复手机</button></div></div>
- <nav class="nav" aria-label="控制台页面"><button data-view="monitor">实时工作台</button><button data-view="history">连接历史</button><button data-view="events">请求事件</button><button data-view="settings">设备与配置</button></nav>
+ <nav class="nav" aria-label="控制台页面"><button data-view="monitor">实时工作台</button><button data-view="history">连接历史</button><button data-view="events">请求事件</button><button data-view="logs">ADB 日志</button><button data-view="settings">设备与配置</button></nav>
 </div></header>
 <div class="commandBar" aria-label="全局网络控制"><div class="shell">
  <div class="commandGroup"><span class="commandLabel">档位</span><div class="quickPresets" id="quickPresets"></div></div>
@@ -92,6 +94,18 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
    <details><summary>状态与地址说明 · 最近 300 条</summary><div class="hint">URL 查询参数已脱敏。明文 HTTP 完成表示首个响应传输结束；HTTPS 标签仅表示隧道状态，App 地址日志显示结果未知。卡死模式保持请求中，实际发生超时才标记超时。</div></details>
   </div>
  </div></section>
+ <section id="view-logs" class="stack" aria-label="ADB 日志" hidden>
+  <div class="card"><div class="head"><h2>ADB 日志</h2><div class="row"><button id="logStart">开始采集</button><button id="logStop">停止所选</button><button id="logStopAll">停止全部</button></div></div>
+   <div class="row toolbar" id="logTargets" aria-label="日志采集手机"></div><div class="status" id="logSessionStatus" role="status"></div><div class="status" id="logActionResult" role="status" hidden></div>
+   <div class="hint">勾选目标手机后开始采集，与工作台共用手机选择；切换页面或关闭弱网仍继续。手机断开后自动重试。</div>
+  </div>
+  <div class="card"><div class="head"><h2>Logcat</h2><div class="row"><button id="logPause">暂停日志刷新</button><button id="logCopy">复制筛选结果</button><button id="logExport">导出 TXT</button><button id="logClear">清空缓存</button></div></div>
+   <div class="filters toolbar"><label>日志手机<select id="logSerial"><option value="">全部手机</option></select></label><label>App 包名<input id="logApp" list="pkgList" placeholder="留空查看全部进程"></label><label>最低级别<select id="logLevel"><option value="">全部级别</option><option value="D">Debug+</option><option value="I">Info+</option><option value="W">Warn+</option><option value="E">Error+</option><option value="F">Fatal</option></select></label><label>关键词 / Tag / PID<input id="logSearch" placeholder="timeout、AndroidRuntime…"></label></div>
+   <div class="row"><button class="mini" id="logUseApp">使用操作 App 包名</button><button class="mini" id="logReset">清除筛选</button><span class="status" id="logCount" role="status"></span></div>
+   <div class="status bad" id="logError" role="status"></div><div class="log-lines" id="logLines" aria-label="日志内容"></div>
+   <div class="hint">最新在前，最多保留所有手机最近 2000 条。App 归属依赖进程 PID，未识别时可用关键词 / PID 查找。清空仅清所选手机的本工具缓存，不清手机 Logcat；复制导出按采集顺序，单条超过 8 KB 会截断。</div>
+  </div>
+ </section>
  <section id="view-settings" class="grid" aria-label="设备与配置" hidden>
   <div class="stack">
    <div class="card"><h2>手机</h2><div id="devices"></div><div class="hint">勾选手机后，在设备快捷操作中统一执行；每台手机独立带宽，参数共用。</div></div>
@@ -123,7 +137,7 @@ const F = [['down_kbps','下行 kbps',0,30000,50],['up_kbps','上行 kbps',0,100
 const PKG_RE = /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+)+$/;
 const ST = {active:['进行中','on'],ok:['完成',''],failed:['失败','bad'],rejected:['断网拒绝','warn']};
 let state=null, displayState=null, stopped=false, paused=false, pauseSeq=0, selectedLane=store.get('lane');
-let view=['monitor','history','events','settings'].includes(store.get('view'))?store.get('view'):'monitor';
+let view=['monitor','history','events','logs','settings'].includes(store.get('view'))?store.get('view'):'monitor';
 let fSerial=store.get('serial'), fApp=store.get('app'), fHost=store.get('host');
 let manualDisplay=false, stateBusy=false, configEpoch=0, configChain=Promise.resolve(), pending={}, paramTimer=null;
 const savingKeys=new Map(), latestParams=new Map(), dirty={blacklist:false,whitelist:false};
@@ -164,7 +178,7 @@ const askName=message=>ask(message,true);
 function download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function hasSelection(id){const selection=window.getSelection();return selection&&!selection.isCollapsed&&$(id).contains(selection.anchorNode)}
 function selectView(next){
- if(!['monitor','history','events','settings'].includes(next))return;
+ if(!['monitor','history','events','logs','settings'].includes(next))return;
  view=next;store.set('view',view);
  if(view==='monitor'||view==='events')$(view==='monitor'?'monitorEvents':'eventsSoloSlot').appendChild($('eventsCard'));
  $(view==='monitor'?'monitorDeviceTools':'settingsTools').appendChild($('deviceTools'));$('monitorTools').hidden=view!=='monitor';
@@ -172,7 +186,7 @@ function selectView(next){
  document.querySelectorAll('[id^="view-"]').forEach(node=>node.hidden=node.id!=='view-'+view);
  document.querySelectorAll('nav [data-view]').forEach(button=>{button.classList.toggle('on',button.dataset.view===view);button.setAttribute('aria-current',button.dataset.view===view?'page':'false')});
  $('globalFilters').hidden=!['monitor','history'].includes(view);
- if(state)render();if(view==='history')refreshConns(true);
+ if(state)render();if(view==='history')refreshConns(true);if(view==='logs')refreshLogs();
 }
 function devName(serial,s=state){return s?.devices.find(d=>d.serial===serial)?.model||s?.lanes.find(l=>l.serial===serial)?.name||serial}
 function renderFilters(){
@@ -279,7 +293,7 @@ function renderDevices(){
 $('clrPkg').value=store.get('clr_pkg')||'com.yalla.yallajalsat';$('clrPkg').onchange=e=>store.set('clr_pkg',e.target.value.trim());
 let toolSerials=new Set(),toolSelectionReady=false,toolSubmitting=false;
 try{const raw=store.get('tool_serials'),saved=raw?JSON.parse(raw):null;if(Array.isArray(saved)&&saved.every(s=>typeof s==='string')){toolSerials=new Set(saved);toolSelectionReady=true}else if(store.get('clr_serial')){toolSerials.add(store.get('clr_serial'));toolSelectionReady=true}}catch{}
-function storeToolSelection(){toolSelectionReady=true;store.set('tool_serials',JSON.stringify([...toolSerials]));renderClear();renderDevices()}
+function storeToolSelection(){toolSelectionReady=true;store.set('tool_serials',JSON.stringify([...toolSerials]));renderClear();renderDevices();renderLogTargets()}
 function toolTargets(){
  const serials=[...toolSerials];if(!serials.length){toast('请勾选要操作的手机',true);return null}
  if(serials.some(serial=>{const d=state.devices.find(d=>d.serial===serial);return !d||d.state!=='device'||d.busy})){toast('选中手机有忙碌或不可用设备，请等待或取消勾选后重试',true);return null}
@@ -451,10 +465,63 @@ $('profileFile').onchange=async e=>{
   incoming.forEach(p=>map.set(p.name,p));const next=validateProfiles([...map.values()]);if(persistProfiles(next))toast('方案已导入');
  }catch(error){toast('导入失败：'+error.message,true)}finally{e.target.value=''}
 };
+let logData=null,logBusy=false,logVersion=0,logsPaused=false,logTimer=null,logSubmitting=false;
+const logLabels={connecting:'连接中',running:'采集中',retrying:'中断重试',stopped:'已停止'};
+function renderLogTargets(){
+ if(!state)return;
+ const sessions=logData?.sessions||[],devices=[...state.devices];
+ for(const session of sessions)if(!devices.some(d=>d.serial===session.serial))devices.push({serial:session.serial,model:session.device,state:'offline'});
+ for(const serial of toolSerials)if(!devices.some(d=>d.serial===serial))devices.push({serial,model:serial,state:'offline'});
+ html('logTargets',devices.map(d=>`<label><input type="checkbox" data-tool-serial="${esc(d.serial)}" ${toolSerials.has(d.serial)?'checked':''}>${esc(d.model)} · ${esc(d.serial)}${d.state!=='device'?' · 不可用':''}</label>`).join('')||'<span class="status">未检测到手机，请连接 USB 并允许调试。</span>');
+ const serials=[...new Set([...devices.map(d=>d.serial),...(logData?.rows||[]).map(r=>r.serial),...($('logSerial').value?[$('logSerial').value]:[])])],selected=$('logSerial').value;
+ if(document.activeElement!==$('logSerial'))html('logSerial','<option value="">全部手机</option>'+serials.map(serial=>`<option value="${esc(serial)}" ${serial===selected?'selected':''}>${esc(devName(serial))} · ${esc(serial)}</option>`).join(''));
+ $('logClear').textContent=$('logSerial').value?'清空该手机缓存':'清空全部缓存';
+ $('logStart').disabled=logSubmitting||!state.adb||!toolSerials.size;
+ $('logStop').disabled=logSubmitting||!sessions.some(s=>s.enabled&&toolSerials.has(s.serial));$('logStopAll').disabled=logSubmitting||!sessions.some(s=>s.enabled);
+ $('logSessionStatus').textContent=sessions.map(s=>`${s.device}（${s.serial}）：${logLabels[s.status]||s.status}${s.error?' · '+s.error:''}`).join('\n')||'尚未采集，勾选手机后点击开始采集。';
+}
+function logQuery(){const q=new URLSearchParams();for(const [key,id] of [['serial','logSerial'],['app','logApp'],['level','logLevel'],['q','logSearch']])if($(id).value.trim())q.set(key,$(id).value.trim());return q}
+function logText(row){return `[${row.device} · ${row.serial}] ${row.time} ${row.pid} ${row.tid} ${row.level} ${row.tag}${row.app?' · '+row.app:''}: ${row.message}`}
+function renderLogs(){
+ if(!logData)return;
+ const rows=logData.rows;$('logCount').textContent=`筛选 ${rows.length} / 缓存 ${logData.total} 条${logsPaused?' · 已暂停刷新':''}`;
+ if(hasSelection('logLines'))return;
+ html('logLines',rows.map(row=>`<article class="log-line"><pre><span class="tag ${row.level==='E'||row.level==='F'?'bad':row.level==='W'?'warn':''}">${esc(row.level)}</span>${esc(logText(row))}</pre>${copyButton(logText(row),'复制')}</article>`).join('')||'<div class="empty">暂无符合条件的日志；请先开始采集，或调整筛选。</div>');
+}
+async function refreshLogs(force=false){
+ if(stopped||view!=='logs'||logBusy)return;
+ logBusy=true;const version=logVersion;
+ try{const data=await request('/api/logs?'+logQuery());if(version!==logVersion)return;
+  if(!logsPaused||force||!logData)logData=data;else logData={...logData,sessions:data.sessions};
+  $('logError').textContent='';renderLogTargets();renderLogs();
+ }catch(error){if(version===logVersion)$('logError').textContent='日志刷新失败：'+error.message+'；将自动重试。'}
+ finally{logBusy=false;if(version!==logVersion)refreshLogs(true)}
+}
+function logFiltersChanged(){logVersion++;logData=null;html('logLines','');$('logCount').textContent='正在加载…';refreshLogs(true)}
+for(const id of ['logSerial','logLevel'])$(id).onchange=logFiltersChanged;
+for(const id of ['logApp','logSearch'])$(id).oninput=()=>{clearTimeout(logTimer);logTimer=setTimeout(logFiltersChanged,250)};
+$('logReset').onclick=()=>{clearTimeout(logTimer);for(const id of ['logSerial','logApp','logLevel','logSearch'])$(id).value='';logFiltersChanged()};
+$('logUseApp').onclick=()=>{clearTimeout(logTimer);$('logApp').value=$('clrPkg').value.trim();logFiltersChanged()};
+$('logPause').onclick=()=>{logsPaused=!logsPaused;$('logPause').textContent=logsPaused?'恢复日志刷新':'暂停日志刷新';if(!logsPaused)refreshLogs(true);renderLogs()};
+$('logCopy').onclick=()=>copyText((logData?.rows||[]).slice().reverse().map(logText).join('\n'));
+$('logExport').onclick=()=>{if(!logData?.rows.length){toast('没有可导出的日志');return}download('weaknet-adb-'+Date.now()+'.txt',logData.rows.slice().reverse().map(logText).join('\n'),'text/plain;charset=utf-8')};
+$('logClear').onclick=async()=>{const serial=$('logSerial').value;try{await request('/api/logs/clear?'+new URLSearchParams({serial}),{});logFiltersChanged();toast(serial?'已清空该手机的工具日志缓存':'已清空全部工具日志缓存')}catch(error){toast('清空失败：'+error.message,true)}};
+async function logAction(action,all=false){
+ if(logSubmitting)return;
+ const serials=all?(logData?.sessions||[]).filter(s=>s.enabled).map(s=>s.serial):[...toolSerials];
+ if(!serials.length){toast('请勾选采集手机',true);return}
+ logSubmitting=true;renderLogTargets();
+ try{const results=await Promise.allSettled(serials.map(serial=>request(`/api/logs/${encodeURIComponent(serial)}/${action}`,{})));
+ const failed=results.filter(r=>r.status==='rejected').length;toast(`${action==='start'?'采集已提交':'停止已提交'} ${serials.length-failed} / ${serials.length} 台`,!!failed);
+ $('logActionResult').textContent=results.map((r,i)=>r.status==='rejected'?`${devName(serials[i])}（${serials[i]}）：${r.reason.message}`:'').filter(Boolean).join('；');$('logActionResult').hidden=!failed;
+ $('logActionResult').classList.toggle('bad',!!failed);await refreshLogs();
+ }finally{logSubmitting=false;renderLogTargets()}
+}
+$('logStart').onclick=()=>logAction('start');$('logStop').onclick=()=>logAction('stop');$('logStopAll').onclick=()=>logAction('stop',true);
 function render(){
  const c=state.config;
  $('summary').textContent=`${state.lanes.length} 台手机弱网中 · 下行 ${c.down_kbps?c.down_kbps+' kbps':'不限'} · 上行 ${c.up_kbps?c.up_kbps+' kbps':'不限'} · RTT ≈ ${c.delay_ms*2} ms · ${c.outage==='reset'?'已断网':c.outage==='stall'?'卡死中':'正常'}${c.blacklist_on?' · 仅黑名单':''}`;
- renderConfig();renderClear();renderDevices();renderFilters();
+ renderConfig();renderClear();renderDevices();renderFilters();renderLogTargets();
  if(view==='monitor'){renderLane();renderHosts();renderEvents()}if(view==='events')renderEvents();
  $('pauseInfo').hidden=!paused;if(paused)$('pauseInfo').textContent=`自动刷新已暂停，后台采集继续，手动切换筛选仍可查询。暂停后新增 ${Math.max(0,state.event_seq-pauseSeq)} 条事件；设备状态和配置仍实时更新。`;
 }
@@ -495,9 +562,9 @@ document.addEventListener('click',async e=>{
 });
 window.addEventListener('beforeunload',event=>{if(dirty.blacklist||dirty.whitelist||Object.keys(pending).length||[...savingKeys.values()].some(Boolean)){event.preventDefault();event.returnValue=''}});
 window.addEventListener('resize',()=>{if(displayState&&view==='monitor')renderLane()});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();refreshConns()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();refreshConns();refreshLogs()}});
 renderProfiles();selectView(view);refresh();
-setInterval(()=>{if(!document.hidden)refresh()},1000);
+setInterval(()=>{if(!document.hidden){refresh();refreshLogs()}},1000);
 setInterval(()=>refreshConns(),2000);
 </script>
 </body>

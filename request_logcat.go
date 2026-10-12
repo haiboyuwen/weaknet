@@ -95,9 +95,13 @@ func (l *Lane) scanRequestLogs(r io.Reader) error {
 }
 
 func (l *Lane) requestProcesses() map[string]string {
-	ctx, cancel := context.WithTimeout(l.ctx, 3*time.Second)
+	return l.app.logProcesses(l.ctx, l.serial)
+}
+
+func (a *App) logProcesses(parent context.Context, serial string) map[string]string {
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, l.app.adb, "-s", l.serial, "shell", "ps", "-A", "-o", "PID,NAME")
+	cmd := exec.CommandContext(ctx, a.adb, "-s", serial, "shell", "ps", "-A", "-o", "PID,NAME")
 	hideWindow(cmd)
 	out, _ := cmd.Output()
 	names := map[string]string{}

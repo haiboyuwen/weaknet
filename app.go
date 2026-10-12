@@ -41,7 +41,8 @@ type App struct {
 	pkgMu sync.Mutex
 	pkgs  map[string]*pkgCache // serial -> UID 包名缓存
 
-	conns ConnStore // 历史连接
+	conns   ConnStore // 历史连接
+	adbLogs adbLogStore
 
 	evMu         sync.Mutex
 	events       []string
@@ -459,6 +460,7 @@ func (a *App) resetShaped() {
 
 // shutdown 恢复所有由本工具启用了弱网的手机
 func (a *App) shutdown() {
+	a.stopAllADBLogs()
 	a.mu.Lock()
 	serials := make([]string, 0, len(a.lanes))
 	for s := range a.lanes {

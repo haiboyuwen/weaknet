@@ -108,6 +108,30 @@ func (a *App) routes() http.Handler {
 		a.event("已清空连接历史")
 		writeJSON(w, map[string]bool{"ok": true})
 	})
+	mux.HandleFunc("GET /api/logs", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		level := q.Get("level")
+		if level != "" && (len(level) != 1 || !strings.Contains("VDIWEF", level)) {
+			http.Error(w, "日志级别不合法", http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, a.adbLogs.snapshot(ADBLogFilter{Serial: q.Get("serial"), App: q.Get("app"), Level: level, Query: q.Get("q")}))
+	})
+	mux.HandleFunc("POST /api/logs/clear", func(w http.ResponseWriter, r *http.Request) {
+		a.adbLogs.clear(r.URL.Query().Get("serial"))
+		writeJSON(w, map[string]bool{"ok": true})
+	})
+	mux.HandleFunc("POST /api/logs/{serial}/start", func(w http.ResponseWriter, r *http.Request) {
+		if err := a.startADBLogs(r.PathValue("serial")); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	})
+	mux.HandleFunc("POST /api/logs/{serial}/stop", func(w http.ResponseWriter, r *http.Request) {
+		a.stopADBLogs(r.PathValue("serial"))
+		writeJSON(w, map[string]bool{"ok": true})
+	})
 	mux.HandleFunc("POST /api/quit", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]bool{"ok": true})
 		a.event("收到退出请求")
