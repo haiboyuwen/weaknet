@@ -85,12 +85,18 @@ func (a *App) event(msg string) {
 }
 
 func (a *App) addEvent(msg, status, scope string) uint64 {
+	return a.recordEvent(EventView{Text: msg, Status: status, Scope: scope})
+}
+
+func (a *App) recordEvent(event EventView) uint64 {
+	msg := event.Text
 	line := time.Now().Format("15:04:05") + " " + msg
 	a.evMu.Lock()
 	a.eventSeq++
 	id := a.eventSeq
+	event.ID, event.Text = id, line
 	a.events = append([]string{line}, a.events...)
-	a.eventDetails = append([]EventView{{ID: id, Text: line, Status: status, Scope: scope}}, a.eventDetails...)
+	a.eventDetails = append([]EventView{event}, a.eventDetails...)
 	if len(a.events) > 300 {
 		a.events = a.events[:300]
 		a.eventDetails = a.eventDetails[:300]

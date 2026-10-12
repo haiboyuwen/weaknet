@@ -19,6 +19,9 @@ type EventView struct {
 	Status string `json:"status,omitempty"` // active | complete | failed | timeout | unknown
 	Scope  string `json:"scope,omitempty"`  // http | tunnel | log
 	Detail string `json:"detail,omitempty"`
+	Serial string `json:"serial,omitempty"`
+	App    string `json:"app,omitempty"`
+	Host   string `json:"host,omitempty"`
 }
 
 // 更新原事件，不增加日志条数；已经离开最近 300 条的事件不再保留。
@@ -160,7 +163,8 @@ func (l *Lane) requestEvent(source, app, method, raw, detail string) uint64 {
 	if source == "代理" {
 		status, scope = "active", "http"
 	}
-	return l.app.addEvent(fmt.Sprintf("[%s] [%s][%s] %s · %s%s", l.name, requestKind(raw), source, address, app, detail), status, scope)
+	u, _ := url.Parse(raw)
+	return l.app.recordEvent(EventView{Text: fmt.Sprintf("[%s] [%s][%s] %s · %s%s", l.name, requestKind(raw), source, address, app, detail), Status: status, Scope: scope, Serial: l.serial, App: app, Host: u.Hostname()})
 }
 
 func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) uint64 {
@@ -172,7 +176,11 @@ func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) uint64
 		if app == "" {
 			app = "未识别 App"
 		}
-		return l.app.addEvent(fmt.Sprintf("[%s] [HTTPS 隧道][代理] CONNECT %s · %s · %s（加密路径不可见）", l.name, target, app, mode), "active", "tunnel")
+		host, _, err := net.SplitHostPort(target)
+		if err != nil {
+			host = target
+		}
+		return l.app.recordEvent(EventView{Text: fmt.Sprintf("[%s] [HTTPS 隧道][代理] CONNECT %s · %s · %s（加密路径不可见）", l.name, target, app, mode), Status: "active", Scope: "tunnel", Serial: l.serial, App: app, Host: host})
 	}
 	return l.requestEvent("代理", app, method, target, " · "+mode)
 }

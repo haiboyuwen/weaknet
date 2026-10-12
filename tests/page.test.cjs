@@ -153,3 +153,13 @@ test('日志包名下拉展开时轮询不重建候选，键盘确认后保留�
  h.element('logApp').value='logs';h.run('logData={rows:[{app:"com.logs.only:worker"}],total:1,sessions:[]};openLogPackages()');assert.match(h.element('logPkgOptions').innerHTML,/com.logs.only/);assert.doesNotMatch(h.element('logPkgOptions').innerHTML,/com.new.app/);
  h.run("$('logApp').onkeydown({key:'Escape'})");assert.equal(h.element('logPkgOptions').hidden,true);
 });
+
+test('事件按结构化手机、App 和域名跟随观测范围，复制保留原文，独立筛选显示包名',async()=>{
+ const h=setup();const row={text:'12:00:00 [Same model] [HTTP][代理] GET http://api.example.com/a · com.example.app · 弱网',serial:'A',app:'com.example.app',host:'api.example.com',status:'active',scope:'http'};
+ h.state.event_details=[row,{...row,serial:'B'},{...row,app:'com.other.app'},{...row,host:'cdn.example.com'},{text:'12:00:00 tool event'}];h.state.events=h.state.event_details.map(e=>e.text);
+ h.run("fSerial='A';fApp='com.example.app';fHost='api.';renderEvents()");assert.equal(h.run('filteredEvents().length'),1);
+ assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/com.example.app/);assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/Same model/);
+ h.run("let copiedEvent='';navigator.clipboard.writeText=async text=>{copiedEvent=text}");await h.run("$('copyEvents').onclick()");assert.match(h.run('copiedEvent'),/com.example.app/);assert.match(h.run('copiedEvent'),/请求中/);
+ h.element('evFollow').checked=false;h.run("$('evFollow').onchange()");assert.equal(h.run('filteredEvents().length'),5);assert.match(h.run('eventContent(filteredEvents()[0])'),/data-app="com.example.app"/);assert.match(h.run('eventContent(filteredEvents()[0])'),/Same model/);
+ h.element('evFollow').checked=true;h.run("fSerial='';fApp='';fHost='';renderEvents()");assert.equal(h.run('filteredEvents().length'),5);
+});

@@ -234,3 +234,22 @@ func TestHTTPSProxyTunnelEvent(t *testing.T) {
 		t.Fatal("代理不应看到 HTTPS 路径")
 	}
 }
+
+func TestRequestEventFilterMetadata(t *testing.T) {
+	app := newTestApp(t, "unlimited")
+	lane := newLane(app, "phone-A", "Same model", 0)
+	id := lane.requestEvent("App 日志", "com.example.app", "GET", "https://user:password@api.example.com/a?token=secret", "")
+	event := waitEventStatus(t, app, id, "unknown")
+	if event.Serial != "phone-A" || event.App != "com.example.app" || event.Host != "api.example.com" {
+		t.Fatalf("filter metadata: %+v", event)
+	}
+	if strings.Contains(event.Text, "secret") || strings.Contains(event.Text, "password") {
+		t.Fatal("event leaked URL secrets")
+	}
+	id = lane.proxyRequestEvent("com.example.app", "CONNECT", "[2001:db8::1]:443", true)
+	app.finishEvent(id, "complete", "")
+	event = waitEventStatus(t, app, id, "complete")
+	if event.Serial != "phone-A" || event.Host != "2001:db8::1" || event.App != "com.example.app" {
+		t.Fatalf("tunnel filter metadata: %+v", event)
+	}
+}
