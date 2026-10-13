@@ -83,7 +83,7 @@ test('全局参数合并保存，并在当前页显示失败重试',async()=>{
 });
 test('请求状态过滤、标签及复制内容保持一致，隧道与日志不误判',()=>{
  const h=setup();h.state.event_details=[{text:'12:00:00 [phone] [HTTP][代理] GET http://example.com',status:'active',scope:'http'},{text:'12:00:00 [phone] [HTTP][代理] GET http://example.com/timeout',status:'timeout',scope:'http',detail:'i/o timeout'},{text:'12:00:00 [phone] [HTTPS 隧道][代理] CONNECT example.com:443',status:'complete',scope:'tunnel'},{text:'12:00:00 [phone] [资源][App 日志] https://example.com/a.mp4',status:'unknown',scope:'log'}];
- h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');assert.match(h.element('events').innerHTML,/请求中/);assert.match(h.element('events').innerHTML,/隧道已结束/);assert.match(h.element('events').innerHTML,/结果未知/);
+ h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');assert.match(h.element('events').innerHTML,/请求中/);assert.match(h.element('events').innerHTML,/隧道已结束/);assert.doesNotMatch(h.element('events').innerHTML,/结果未知/);
  h.element('evStatus').value='errors';assert.equal(h.run('filteredEvents().length'),1);assert.match(h.run('filteredEvents().map(eventText).join("\\n")'),/请求失败（超时）.*i\/o timeout/);
  h.state.event_details[0].status='complete';h.element('evStatus').value='active';assert.equal(h.run('filteredEvents().length'),0);
 });
@@ -160,8 +160,8 @@ test('事件按结构化手机、App 和域名跟随观测范围，复制保留�
  h.run("fSerial='A';fApp='com.example.app';fHost='api.';renderEvents()");assert.equal(h.run('filteredEvents().length'),1);
  assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/com.example.app/);assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/Same model/);
  const menu=h.run('eventMenuContent(filteredEvents()[0])');assert.match(menu,/data-copy=/);assert.match(menu,/com.example.app/);assert.match(menu,/请求中/);
- h.element('evFollow').checked=false;h.run("$('evFollow').onchange()");assert.equal(h.run('filteredEvents().length'),5);assert.match(h.run('eventContent(filteredEvents()[0])'),/data-app="com.example.app"/);assert.match(h.run('eventContent(filteredEvents()[0])'),/Same model/);
- h.element('evFollow').checked=true;h.run("fSerial='';fApp='';fHost='';renderEvents()");assert.equal(h.run('filteredEvents().length'),5);
+ h.element('evFollow').checked=false;h.run("$('evFollow').onchange()");assert.equal(h.run('filteredEvents().length'),4);assert.match(h.run('eventContent(filteredEvents()[0])'),/data-app="com.example.app"/);assert.match(h.run('eventContent(filteredEvents()[0])'),/Same model/);
+ h.element('evFollow').checked=true;h.run("fSerial='';fApp='';fHost='';renderEvents()");assert.equal(h.run('filteredEvents().length'),4);
 });
 
 test('HTTPS 轮询保留域名草稿，保存失败也不丢失，成功使用返回设置',async()=>{
@@ -184,7 +184,7 @@ test('工作台域名快捷添加保存并启用解密，失败保留草稿且�
  assert.match(h.element('httpsDomains').value,/new.example/);assert.doesNotMatch(h.element('httpsDomainChips').innerHTML,/new.example/);assert.equal(h.run('httpsDirty'),true);
 });
 test('请求事件提供域名名单和解密操作，所有请求事件可打开详情',()=>{
- const h=setup();h.state.https={enabled:true,domains:['api.example']};h.state.event_details=[{id:1,text:'12:00:00 [phone] [HTTP][代理] GET https://api.example/a · com.example.app · HTTPS 解密 · 弱网',host:'api.example',status:'complete',scope:'http',decrypted:true},{id:2,text:'12:00:01 [phone] [HTTP][App 日志] https://other.example/a',host:'other.example',status:'unknown',scope:'log'}];h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');
+ const h=setup();h.state.https={enabled:true,domains:['api.example']};h.state.event_details=[{id:1,text:'12:00:00 [phone] [HTTP][代理] GET https://api.example/a · com.example.app · HTTPS 解密 · 弱网',host:'api.example',status:'complete',scope:'http',decrypted:true},{id:2,text:'12:00:01 [phone] [HTTP][代理] GET https://other.example/a',host:'other.example',status:'active',scope:'http'}];h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');
  assert.match(h.element('events').innerHTML,/data-request-detail="1"/);assert.match(h.element('events').innerHTML,/data-request-detail="2"/);const menu=h.run('eventMenuContent(filteredEvents()[1])');assert.match(menu,/data-list="blacklist" data-item="other.example"/);assert.match(menu,/data-https="other.example"/);assert.match(h.element('events').innerHTML,/data-event-more="1"/);assert.doesNotMatch(h.element('events').innerHTML,/data-list=/);assert.match(h.element('events').innerHTML,/HTTPS 已解密/);
  h.element('evType').value='decrypted';assert.equal(h.run('filteredEvents().length'),1);
 });
@@ -196,9 +196,9 @@ test('请求详情拒绝旧响应覆盖新请求，并正确显示文本正文�
  assert.equal(h.element('requestDetailURL').textContent,'https://api.example/2');assert.match(h.element('responseBody').textContent,/"ok": true/);assert.equal(h.element('requestHeaders').textContent,'Authorization: REDACTED');assert.match(h.run("inspectionText(requestDetailData,'response')"),/HTTP 200 HTTP\/2.0/);assert.doesNotMatch(h.element('responseBody').textContent,/old data/);
 });
 
-test('点击 App 日志显示未采集信息和实际域名入口，不伪造请求响应或请求接口',async()=>{
+test('App 日志不进入实时请求列表，旧记录详情仍不伪造请求响应',async()=>{
  const h=setup();h.state.https={enabled:true,domains:['fat-api.example.com']};h.state.event_details=[{id:7,text:'09:41:20 [phone] [HTTP][App 日志] https://fat-api.example.live/track · com.example.app',host:'fat-api.example.live',app:'com.example.app',serial:'A',scope:'log',status:'unknown'}];h.state.events=h.state.event_details.map(e=>e.text);
- h.run('renderEvents()');assert.match(h.element('events').innerHTML,/class="event-open" data-request-detail="7"/);
+ h.run('renderEvents()');assert.doesNotMatch(h.element('events').innerHTML,/data-request-detail="7"/);assert.equal(h.run('filteredEvents().length'),0);
  await h.run('openRequestDetail(7)');assert.equal(h.calls.length,0);assert.match(h.element('requestCaptureNote').textContent,/App 日志/);assert.match(h.element('requestEnableHTTPS').textContent,/fat-api.example.live/);assert.equal(h.element('requestEnableHTTPS').hidden,false);assert.equal(h.element('responseBody').textContent,'未采集');assert.equal(h.element('copyResponse').disabled,true);
  h.state.https.domains=['example.live'];h.run('renderUncapturedDetail(requestDetailEvent)');assert.equal(h.element('requestEnableHTTPS').hidden,true);assert.match(h.element('requestCaptureNote').textContent,/重新发起请求/);
 });
@@ -214,9 +214,9 @@ test('请求行速率只匹配同手机 App 域名，未采样显示未知并保
  h.state.event_details=[event];h.state.events=[event.text];
  h.state.lanes=[{serial:'A',stats:{hosts:[{app:'com.example.app',host:'api.example',kbs:1.2,queued_kb:3},{app:'com.example.app',host:'api.example',kbs:0.8,queued_kb:2},{app:'com.other.app',host:'api.example',kbs:90,queued_kb:90},{app:'com.example.app',host:'other.example',kbs:80,queued_kb:80}]}},{serial:'B',stats:{hosts:[{app:'com.example.app',host:'api.example',kbs:70,queued_kb:70}]}}];
  h.run('renderEvents()');let output=h.element('events').innerHTML;
- assert.match(output,/域名 ↓ 2\.0 KB\/s/);assert.match(output,/排队 5 KB/);assert.match(output,/多条请求共用此速率/);assert.match(output,/data-request-detail="7"/);
+ assert.match(output,/>2\.0 KB\/s<\/td>/);assert.equal(h.run('liveTrafficIndex().values().next().value.queue'),5);assert.match(output,/不是单条请求吞吐/);assert.match(output,/data-request-detail="7"/);
  h.state.lanes=[];h.run('renderEvents()');output=h.element('events').innerHTML;
- assert.match(output,/域名 ↓ — KB\/s/);assert.match(output,/排队 — KB/);assert.doesNotMatch(output,/域名 ↓ 0\.0 KB\/s/);
+ assert.equal(h.run('liveTrafficIndex().size'),0);assert.match(output,/<td class="metric"[^>]*>—<\/td>/);assert.doesNotMatch(output,/>0\.0 KB\/s<\/td>/);
 });
 
 test('请求中快捷筛选只显示当前范围内未完成接口，完成后自动移出并更新计数',()=>{
@@ -226,7 +226,7 @@ test('请求中快捷筛选只显示当前范围内未完成接口，完成后�
  h.run("$('evPending').onclick()");assert.equal(h.element('evStatus').value,'request_active');assert.equal(h.run('filteredEvents().length'),1);assert.equal(h.run('filteredEvents()[0].id'),1);
  h.state.event_details[0].status='complete';h.run('renderEvents()');assert.equal(h.element('evPending').textContent,'请求中 0');assert.match(h.element('events').innerHTML,/当前没有正在请求的接口/);
  h.element('evStatus').value='tunnel_active';assert.equal(h.run('filteredEvents().length'),1);assert.equal(h.run('filteredEvents()[0].id'),3);
- h.element('evStatus').value='';h.run('renderEvents()');assert.equal(h.run('filteredEvents().length'),4);
+ h.element('evStatus').value='';h.run('renderEvents()');assert.equal(h.run('filteredEvents().length'),3);
 });
 
 test('请求时间显示开始与响应结束及持续耗时，日志不推断响应时间',()=>{
@@ -236,7 +236,7 @@ test('请求时间显示开始与响应结束及持续耗时，日志不推断�
  const active=h.run("eventTimingText({scope:'http',status:'active',started:timingStart,duration_ms:2500})");assert.match(active,/已进行 2\.5 s/);assert.match(active,/—/);
  const log=h.run("eventTimingText({scope:'log',status:'unknown',recorded_at:timingStart})");assert.match(log,/记录 .*\.123/);assert.match(log,/响应结束 — · 耗时 —/);assert.doesNotMatch(log,/请求开始/);
  const tunnel=h.run("eventTimingText({scope:'tunnel',status:'complete',started:timingStart,ended:timingStart+50})");assert.match(tunnel,/连接开始/);assert.match(tunnel,/连接结束/);assert.doesNotMatch(tunnel,/响应结束/);
- h.state.event_details=[{id:1,scope:'http',status:'complete',text:'10:00:00 [phone] [HTTP][代理] GET https://api.example',started:1700000000123,ended:1700000000456}];h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');assert.match(h.element('events').innerHTML,/class="event-timing"/);assert.match(h.run('eventMenuContent(filteredEvents()[0])'),/耗时 333 ms/);
+ h.state.event_details=[{id:1,scope:'http',status:'complete',text:'10:00:00 [phone] [HTTP][代理] GET https://api.example',started:1700000000123,ended:1700000000456}];h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');assert.match(h.element('events').innerHTML,/title="请求开始[^"]*响应结束[^"]*耗时 333 ms"/);assert.match(h.run('eventMenuContent(filteredEvents()[0])'),/耗时 333 ms/);
 });
 
 test('操作菜单打开时固定请求行，关闭后再显示新增请求以避免操作对象错位',()=>{
@@ -246,4 +246,17 @@ test('操作菜单打开时固定请求行，关闭后再显示新增请求以�
  h.state.event_details=[{...old,id:2,text:old.text.replace('old.example','new.example'),host:'new.example'},old];h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');
  assert.equal(h.element('events').innerHTML,before);assert.equal(h.run('eventMenuRows[0].host'),'old.example');
  h.run('eventMenuOpen=false;renderEvents()');assert.match(h.element('events').innerHTML,/new.example/);assert.equal(h.run('eventMenuRows[0].host'),'new.example');
+});
+
+test('实时请求始终排除 App 日志和工具事件，计数与协议筛选仅包含网络记录',()=>{
+ const h=setup();h.state.event_details=[
+  {id:1,scope:'http',status:'active',serial:'A',text:'12:00:00 [phone] [HTTP][代理] GET http://api.example/data.json'},
+  {id:2,scope:'tunnel',status:'active',serial:'A',host:'api.example',text:'12:00:00 [phone] [HTTPS 隧道][代理] CONNECT api.example:443'},
+  {id:3,scope:'log',status:'unknown',serial:'A',text:'12:00:00 [phone] [HTTP][App 日志] GET http://api.example/data.json'},
+  {id:4,text:'12:00:00 tool event'}
+ ];h.state.events=h.state.event_details.map(e=>e.text);
+ h.run("$('evFollow').checked=false;renderEvents()");assert.equal(h.run('filteredEvents().map(e=>e.id).join()'),'1,2');assert.match(h.element('evCount').textContent,/显示 2 \/ 2 条/);assert.equal(h.state.event_details.length,4);
+ h.run("requestProtocol='https';renderEvents()");assert.equal(h.run('filteredEvents().map(e=>e.id).join()'),'2');
+ h.run("requestProtocol='';requestContentType='json';renderEvents()");assert.equal(h.run('filteredEvents().map(e=>e.id).join()'),'1');
+ h.state.event_details=undefined;h.run("requestContentType='';renderEvents()");assert.equal(h.run('filteredEvents().length'),2);assert.doesNotMatch(h.element('events').innerHTML,/App 日志|tool event/);
 });
