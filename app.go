@@ -556,8 +556,12 @@ func (a *App) state(appFilter string) State {
 	st.EventDetails = append([]EventView{}, a.eventDetails...)
 	a.evMu.Unlock()
 	now := time.Now().UnixMilli()
+	summaries := a.inspections.summaries()
 	for i := range st.EventDetails {
 		e := &st.EventDetails[i]
+		if summary, ok := summaries[e.ID]; ok {
+			applyRequestSummary(e, summary)
+		}
 		if e.Status == "active" && e.Started > 0 {
 			e.DurationMS = max(int64(0), now-e.Started)
 		}

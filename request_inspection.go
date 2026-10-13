@@ -263,3 +263,44 @@ func (a *App) inspectionRoutes(mux *http.ServeMux) {
 		json.NewEncoder(w).Encode(view)
 	})
 }
+
+type requestSummary struct {
+	method, url, contentType, requestType, protocol string
+	statusCode                                      int
+	requestBytes                                    int64
+	responseBytes                                   *int64
+}
+
+func inspectionSummary(e *inspectionEntry) requestSummary {
+	s := requestSummary{method: e.view.Method, url: e.view.URL, contentType: e.response.headers.Get("Content-Type"), requestType: e.request.headers.Get("Content-Type"), protocol: e.view.Protocol, statusCode: e.view.StatusCode, requestBytes: e.request.count}
+	if e.view.StatusCode > 0 {
+		n := e.response.count
+		s.responseBytes = &n
+	}
+	return s
+}
+func (s *inspectionStore) summary(id uint64) (requestSummary, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e := s.entries[id]
+	if e == nil {
+		return requestSummary{}, false
+	}
+	return inspectionSummary(e), true
+}
+func (s *inspectionStore) summaries() map[uint64]requestSummary {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result := make(map[uint64]requestSummary, len(s.entries))
+	for id, e := range s.entries {
+		result[id] = inspectionSummary(e)
+	}
+	return result
+}
+func applyRequestSummary(e *EventView, s requestSummary) {
+	e.Method, e.URL, e.ContentType, e.RequestType, e.Protocol = s.method, s.url, s.contentType, s.requestType, s.protocol
+	e.StatusCode = s.statusCode
+	n := s.requestBytes
+	e.RequestBytes = &n
+	e.ResponseBytes = s.responseBytes
+}
