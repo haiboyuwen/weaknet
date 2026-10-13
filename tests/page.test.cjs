@@ -207,3 +207,14 @@ test('隧道详情保持连接状态，过期解密详情明确不可用，不�
  await h.run('openRequestDetail(8)');assert.match(h.element('requestDetailTitle').textContent,/连接中/);assert.match(h.element('requestCaptureNote').textContent,/隧道/);
  h.setHandler(()=>({ok:false,text:async()=>'详情已过期'}));h.element('responseBody').textContent='old sensitive body';await h.run('openRequestDetail(9)');assert.equal(h.element('responseBody').textContent,'未采集');assert.match(h.element('requestCaptureNote').textContent,/已过期/);
 });
+
+test('请求行速率只匹配同手机 App 域名，未采样显示未知并保留请求详情入口',()=>{
+ const h=setup();
+ const event={id:7,text:'10:00:00 [phone A] [HTTP][代理] GET https://API.EXAMPLE./one · com.example.app',status:'complete',scope:'http',serial:'A',app:'com.example.app',host:'API.EXAMPLE.'};
+ h.state.event_details=[event];h.state.events=[event.text];
+ h.state.lanes=[{serial:'A',stats:{hosts:[{app:'com.example.app',host:'api.example',kbs:1.2,queued_kb:3},{app:'com.example.app',host:'api.example',kbs:0.8,queued_kb:2},{app:'com.other.app',host:'api.example',kbs:90,queued_kb:90},{app:'com.example.app',host:'other.example',kbs:80,queued_kb:80}]}},{serial:'B',stats:{hosts:[{app:'com.example.app',host:'api.example',kbs:70,queued_kb:70}]}}];
+ h.run('renderEvents()');let output=h.element('events').innerHTML;
+ assert.match(output,/域名 ↓ 2\.0 KB\/s/);assert.match(output,/排队 5 KB/);assert.match(output,/多条请求共用此速率/);assert.match(output,/data-request-detail="7"/);
+ h.state.lanes=[];h.run('renderEvents()');output=h.element('events').innerHTML;
+ assert.match(output,/域名 ↓ — KB\/s/);assert.match(output,/排队 — KB/);assert.doesNotMatch(output,/域名 ↓ 0\.0 KB\/s/);
+});
