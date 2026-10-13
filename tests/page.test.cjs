@@ -218,3 +218,13 @@ test('请求行速率只匹配同手机 App 域名，未采样显示未知并保
  h.state.lanes=[];h.run('renderEvents()');output=h.element('events').innerHTML;
  assert.match(output,/域名 ↓ — KB\/s/);assert.match(output,/排队 — KB/);assert.doesNotMatch(output,/域名 ↓ 0\.0 KB\/s/);
 });
+
+test('请求中快捷筛选只显示当前范围内未完成接口，完成后自动移出并更新计数',()=>{
+ const h=setup(),make=(id,serial,scope,status)=>({id,serial,scope,status,app:'com.example.app',host:'api.example',text:`10:00:00 [phone] [HTTP][代理] GET https://api.example/${id} · com.example.app`});
+ h.state.event_details=[make(1,'A','http','active'),make(2,'B','http','active'),make(3,'A','tunnel','active'),make(4,'A','log','unknown'),make(5,'A','http','complete')];h.state.events=h.state.event_details.map(e=>e.text);
+ h.run("fSerial='A';$('evFollow').checked=true;renderEvents()");assert.equal(h.element('evPending').textContent,'请求中 1');
+ h.run("$('evPending').onclick()");assert.equal(h.element('evStatus').value,'request_active');assert.equal(h.run('filteredEvents().length'),1);assert.equal(h.run('filteredEvents()[0].id'),1);
+ h.state.event_details[0].status='complete';h.run('renderEvents()');assert.equal(h.element('evPending').textContent,'请求中 0');assert.match(h.element('events').innerHTML,/当前没有正在请求的接口/);assert.equal(h.element('copyEvents').disabled,true);
+ h.element('evStatus').value='tunnel_active';assert.equal(h.run('filteredEvents().length'),1);assert.equal(h.run('filteredEvents()[0].id'),3);
+ h.run("$('evClear').onclick()");assert.equal(h.element('evStatus').value,'');assert.equal(h.run('filteredEvents().length'),4);
+});
