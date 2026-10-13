@@ -21,11 +21,16 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 @media(max-width:1000px){#eventsCard>.filters{grid-template-columns:1fr 1fr}.workspace{grid-template-columns:1fr}.workspace #eventsCard{position:static}.commandBar>.shell{gap:8px 16px}.commandHint{display:none}}
 @media(max-width:600px){.quickFields{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px}.commandBar>.shell{display:block;padding-top:8px;padding-bottom:8px}.commandGroup+.commandGroup{margin-top:6px}.commandBar .commandSettings{position:absolute;right:12px;top:44px;height:28px}.commandBar button{font-size:11px;padding:4px 8px}.commandLabel{font-size:11px;min-width:24px}.workspace .kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.workspace .kpi b{font-size:19px}.workspace .kpi span{font-size:10px}.workspace .event{grid-template-columns:1fr}}
 
-/* 工作台把操作区压成两行，详细说明和名单编辑保留在配置页 / 展开区。 */
-#monitorTools{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px;align-items:stretch}
-#monitorTools .card{padding:12px 14px;height:100%}#monitorTools h2{font-size:13px;margin:0}#monitorTools .head{align-items:center;gap:6px;margin-bottom:6px}#monitorTools .status{font-size:11px;margin:0}#monitorTools label{font-size:11px;gap:3px}#monitorTools input,#monitorTools select{font-size:12px;padding:5px 8px}#monitorTools .filters{gap:8px}#monitorTools .toolbar{margin:8px 0 0}#monitorTools button{font-size:12px;padding:5px 9px}#monitorTools .row{gap:6px}#monitorTools #deviceTools>.hint{display:none}
-#monitorTools #scopeCard{display:flex;flex-direction:column;gap:7px}#monitorTools .scope{margin:0;padding:0;background:transparent;font-size:12px}#monitorTools .switch{display:flex;font-size:12px}#monitorTools details{margin:0}#monitorTools summary{font-size:12px}#monitorTools .list-head{margin:12px 0 6px}#monitorTools .chips{margin:6px 0}#monitorTools .switch input{width:15px;height:15px;padding:0}#globalFilters{padding:12px 16px}#globalFilters .hint{margin-top:6px;font-size:11px}
-@media(max-width:960px){#monitorTools{grid-template-columns:1fr}#monitorTools .card{height:auto}}
+/* 设备与作用范围各占一行，名单按需展开，留出观察空间。 */
+#monitorTools{grid-template-columns:minmax(0,1fr);gap:0;background:var(--card);border:1px solid var(--line);border-radius:10px}
+#monitorTools .card{padding:9px 14px;border:0;border-radius:0;background:transparent;display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+#monitorTools h2{font-size:12px;margin:0;color:var(--quiet);font-weight:500;white-space:nowrap}#monitorTools .head{display:contents}#monitorTools .status{font-size:11px;margin:0}#monitorTools label{font-size:11px;gap:3px}#monitorTools input,#monitorTools select{font-size:12px;padding:5px 8px}#monitorTools button{font-size:12px;padding:5px 9px;white-space:nowrap}#monitorTools .row{gap:6px}#monitorTools .toolbar{margin:0}#monitorTools details{margin:0}#monitorTools summary{font-size:12px}#monitorTools #deviceTools>.hint{display:none}
+#monitorTools #deviceTools>.filters{display:contents}#monitorTools #deviceTools .device-picker-field{display:block;width:210px;min-width:140px}#monitorTools #deviceTools .device-picker-field>span,#monitorTools #toolPackageField>label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+#monitorTools #toolPackageField{display:block;flex:1;min-width:220px;max-width:360px}#monitorTools #toolDeviceStatus{order:5;margin-left:auto;white-space:nowrap}#monitorTools #clrMsg{order:6;flex-basis:100%;overflow-wrap:anywhere}#monitorTools #clrMsg:empty{display:none}
+#monitorTools #scopeCard{border-top:1px solid var(--line);gap:8px 16px}#monitorTools .scope{order:1;margin:0;padding:0;background:transparent;font-size:12px}#monitorTools #scopeCard .switch{order:2;display:flex;font-size:12px;white-space:nowrap}#monitorTools .switch input{width:15px;height:15px;padding:0}#monitorTools #scopeEditor{order:3;margin-left:auto;position:relative}#monitorTools #listConflict{order:4;flex-basis:100%;margin:0}
+#scopeEditor>summary{list-style:none;padding:5px 9px;border:1px solid var(--line);border-radius:7px;white-space:nowrap}#scopeEditor>summary::-webkit-details-marker{display:none}#scopeEditor[open]>summary{border-color:var(--accent);color:var(--accent)}#scopeEditor>.list-editors{position:absolute;right:0;top:calc(100% + 6px);z-index:8;width:720px;max-width:calc(100vw - 60px);padding:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0003}#scopeEditor .list-flyout{position:static;width:auto;max-width:none;box-shadow:none;margin-top:5px}#scopeEditor .list-menu[open]{white-space:normal}#scopeEditor .list-menu[open] .list-flyout{position:absolute;right:0;width:300px;z-index:9}
+#globalFilters{padding:12px 16px}#globalFilters .hint{margin-top:6px;font-size:11px}
+@media(max-width:700px){#monitorTools .card{padding:8px 10px;gap:8px}#monitorTools #deviceTools .device-picker-field{width:calc(100% - 70px);flex:1}#monitorTools #toolPackageField{max-width:none;flex-basis:100%;min-width:0}#monitorTools #toolDeviceStatus{white-space:normal}#monitorTools #scopeEditor{margin-left:0}#scopeEditor>.list-editors{position:static;width:100%;max-width:none;margin-top:7px}#monitorTools #scopeEditor[open]{flex-basis:100%}#scopeEditor .list-editor{grid-template-columns:40px minmax(0,1fr)}#scopeEditor .list-controls{grid-column:2}}
 
 .list-editors{display:grid;gap:7px}.list-editor{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:7px;align-items:center}.list-editor>label{font-size:12px;color:var(--ink);white-space:nowrap}.list-editor textarea{height:31px;min-height:31px;resize:none;white-space:pre;overflow:auto;padding:5px 7px;font-size:12px}.list-controls{display:flex;align-items:center;gap:4px;white-space:nowrap}.list-controls button{font-size:11px!important;padding:4px 6px!important;border-radius:5px}.list-menu{position:relative;margin:0!important}.list-menu summary{list-style:none;font-size:11px!important;padding:4px;color:var(--quiet)}.list-menu summary::-webkit-details-marker{display:none}.list-flyout{position:absolute;right:0;top:100%;width:320px;max-width:calc(100vw - 50px);max-height:200px;overflow:auto;z-index:8;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;box-shadow:0 8px 24px #0003}.list-flyout .chips:empty::before{content:'名单为空';color:var(--quiet);font-size:12px}#scopeCard>.head{align-items:center;margin-bottom:8px}#scopeCard .list-editors{margin-top:8px}#monitorTools #scopeCard>.head{margin-bottom:0}#monitorTools #scopeCard .list-editors{margin-top:0}#monitorTools #scopeCard>h2{margin-bottom:0}
 @media(max-width:600px){.list-editor{grid-template-columns:38px minmax(0,1fr) auto;gap:4px}.list-controls{gap:2px}.list-controls button{padding:4px!important}.list-editor>label{font-size:11px}.list-menu summary{padding:3px;font-size:10px!important}}
@@ -58,6 +63,9 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.event-toolbar{display:flex;gap:8px;align-items:center;margin:10px 0}.event-query{flex:1}.event-toolbar>label{min-width:0}.event-toolbar input,.event-toolbar select{font-size:12px;padding:5px 8px}.event-toolbar>details{margin:0;position:relative}.event-toolbar>details>summary{white-space:nowrap;padding:5px 8px;border:1px solid var(--line);border-radius:7px;list-style:none}.event-advanced{position:absolute;right:0;top:100%;z-index:3;display:grid;gap:10px;width:240px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0003}.event-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--quiet);margin-bottom:3px}.event-meta .tag{font-size:10px;padding:0 5px}.event-app{font-size:11px;overflow-wrap:anywhere}.event-text{line-height:1.65}#eventsCard>.head{align-items:center}#eventsCard>.head button{font-size:12px;padding:5px 9px}
 @media(max-width:960px){#globalFilters .filters{grid-template-columns:1fr 1fr}#observationCard #trendCard{grid-template-columns:minmax(0,1fr) auto}#observationCard #laneBody{grid-column:1/-1;grid-row:2}}
 @media(max-width:600px){#globalFilters .filters>label{display:grid;gap:3px}#globalFilters>.head>.status{display:none}.event-toolbar{flex-wrap:wrap}.event-query{flex-basis:100%}.event-toolbar>label:not(.event-query){flex:1}#observationCard{padding:10px}.traffic-item{gap:4px 7px}.traffic-item>.actions{flex-wrap:wrap;flex-shrink:1}}
+
+.https-workbench{margin-top:12px;padding:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.https-inline{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.https-inline .switch{white-space:nowrap}.https-add{flex:1;min-width:170px;max-width:440px}.https-inline input,.https-inline button{font-size:12px;padding:5px 8px}.https-domains{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.https-domain{display:inline-flex;align-items:center;gap:5px;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:11px;overflow-wrap:anywhere}.https-domain button{padding:0 3px;background:transparent;border:0;font-size:11px}.https-domain .link{max-width:260px;overflow-wrap:anywhere;white-space:normal}.https-bulk{margin-top:6px}.https-bulk>div{display:flex;align-items:start;gap:7px;margin-top:7px}.https-bulk textarea{flex:1}.https-bulk .row{flex-shrink:0}.https-workbench .status{margin:0}.workspace .event-actions{max-width:360px;align-content:start}#requestDetailDialog{width:1100px;max-width:calc(100vw - 32px)}.request-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px}.request-pane{border:1px solid var(--line);border-radius:9px;padding:12px;min-width:0}.request-pane h3{margin:0;font-size:14px}.request-pane h4{margin:12px 0 5px;font-size:12px;color:var(--quiet)}.request-pane pre{font:12px/1.6 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border-radius:6px;padding:9px;max-height:45vh;overflow:auto;margin:5px 0}.request-pane details pre{max-height:24vh}.request-url{overflow-wrap:anywhere;margin-top:10px}.request-pane .hint{margin:4px 0}.request-detail-meta{margin:5px 0;font-size:12px;color:var(--quiet)}
+@media(max-width:720px){.request-columns{grid-template-columns:minmax(0,1fr)}.https-bulk>div{flex-wrap:wrap}.workspace .event{grid-template-columns:1fr}.workspace .event-actions{max-width:none}}
 </style>
 </head>
 <body>
@@ -99,7 +107,8 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
  </section>
  <div id="eventsStaging" hidden>
   <div class="card" id="eventsCard"><div class="head"><h2>请求事件</h2><div class="row"><button id="copyEvents">复制筛选结果</button><button id="exportEvents">导出 TXT</button><button class="mini" id="evClear">重置条件</button></div></div>
-   <div class="event-toolbar"><label class="event-query"><span class="sr-only">事件关键词</span><input id="evSearch" placeholder="搜索请求地址、关键词…"></label><label><span class="sr-only">事件状态</span><select id="evStatus"><option value="">全部状态</option><option value="active">请求中 / 连接中</option><option value="complete">请求完成 / 隧道结束</option><option value="errors">全部失败（含超时）</option><option value="failed">请求失败</option><option value="timeout">请求失败（超时）</option><option value="unknown">结果未知</option></select></label><details id="eventAdvanced"><summary>更多筛选<span id="evAdvancedCount"></span></summary><div class="event-advanced"><label>类型<select id="evType"><option value="">全部事件</option><option value="资源">资源请求</option><option value="HTTP">HTTP 接口</option><option value="HTTPS 隧道">HTTPS 隧道</option><option value="system">工具事件</option></select></label><label>来源<select id="evSource"><option value="">全部来源</option><option value="代理">代理</option><option value="App 日志">App 日志</option></select></label><label class="switch"><input type="checkbox" id="evFollow" checked>跟随观测范围</label></div></details></div>
+   <div class="https-workbench"><div class="https-inline"><label class="switch"><input type="checkbox" id="httpsEnabled">HTTPS 解密</label><label class="https-add"><span class="sr-only">添加解密域名</span><input id="httpsAddDomain" placeholder="输入域名，或从下方请求直接添加"></label><button id="addHTTPS">添加并解密</button><span class="status" id="httpsStatus" role="status"></span><button class="link mini" id="eventCASettings">CA 证书 / 接入</button></div><div class="https-domains" id="httpsDomainChips"></div><details class="https-bulk"><summary>批量编辑解密域名</summary><div><label style="flex:1">解密域名（含子域名）<textarea id="httpsDomains" rows="2" placeholder="api.example.com, cdn.example.com"></textarea></label><div class="row"><button id="saveHTTPS">保存并重连</button><button id="resetHTTPS">撤销草稿</button></div></div></details><div class="hint">增删域名、切换开关时会重连解密方式变化的目标连接。需先让调试包信任固定 CA。</div></div>
+   <div class="event-toolbar"><label class="event-query"><span class="sr-only">事件关键词</span><input id="evSearch" placeholder="搜索请求地址、关键词…"></label><label><span class="sr-only">事件状态</span><select id="evStatus"><option value="">全部状态</option><option value="active">请求中 / 连接中</option><option value="complete">请求完成 / 隧道结束</option><option value="errors">全部失败（含超时）</option><option value="failed">请求失败</option><option value="timeout">请求失败（超时）</option><option value="unknown">结果未知</option></select></label><details id="eventAdvanced"><summary>更多筛选<span id="evAdvancedCount"></span></summary><div class="event-advanced"><label>类型<select id="evType"><option value="">全部事件</option><option value="资源">资源请求</option><option value="HTTP">HTTP 接口</option><option value="HTTPS 隧道">HTTPS 隧道</option><option value="decrypted">HTTPS 已解密</option><option value="system">工具事件</option></select></label><label>来源<select id="evSource"><option value="">全部来源</option><option value="代理">代理</option><option value="App 日志">App 日志</option></select></label><label class="switch"><input type="checkbox" id="evFollow" checked>跟随观测范围</label></div></details></div>
    <div class="status" id="evCount" role="status"></div><div class="events" id="events"></div>
    <details><summary>状态与地址说明 · 最近 300 条</summary><div class="hint">URL 查询参数已脱敏。明文 HTTP 完成表示首个响应传输结束；未解密的 HTTPS 标签仅表示隧道状态；启用解密后显示接口响应状态，App 地址日志显示结果未知。卡死模式保持请求中，实际发生超时才标记超时。</div></details>
   </div>
@@ -118,27 +127,26 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
  </section>
  <div id="settingsContent" hidden>
   <div class="stack" id="settingsExtras">
-   <div class="card" id="httpsCard"><div class="head"><h2>HTTPS 解密 · 固定 CA</h2><label class="switch"><input type="checkbox" id="httpsEnabled">启用指定域名</label></div>
+   <div class="card" id="httpsCard"><div class="head"><h2>HTTPS 解密 · 固定 CA</h2><span class="status">解密域名在工作台的请求事件中管理</span></div>
     <div class="row toolbar"><a class="btn" href="/api/https/ca.crt" download="weaknet_ca.crt">下载 CA 证书</a><a class="btn" href="/api/https/android.xml" download="network_security_config.xml">下载 Android 配置</a></div>
-    <label>解密域名（含子域名）<textarea id="httpsDomains" rows="2" placeholder="api.example.com, cdn.example.com"></textarea></label>
-    <div class="row toolbar"><button id="saveHTTPS">保存</button><button id="resetHTTPS">撤销草稿</button><span class="status" id="httpsStatus" role="status"></span></div>
-    <details><summary>CA 指纹与接入说明</summary><div class="hint" id="httpsIdentity" style="overflow-wrap:anywhere"></div><div class="hint">将证书放到 Android 的 res/raw/weaknet_ca.crt，通过 debug-overrides 信任；Manifest 的 application 指向对应的 networkSecurityConfig。只在 debuggable 调试包中生效。已有配置需合并 debug-overrides，自定义证书固定需在调试构建中适配。</div><div class="hint">保存后新连接生效，可重新打开 App 建立连接。支持 HTTPS 请求地址、响应状态和 WebSocket；客户端协商 HTTP/1.1，上游仍验证证书。CA 私钥仅保存在电脑，备份整个 CA 目录可迁移到另一台电脑。</div></details>
+    <details><summary>CA 指纹与接入说明</summary><div class="hint" id="httpsIdentity" style="overflow-wrap:anywhere"></div><div class="hint">将证书放到 Android 的 res/raw/weaknet_ca.crt，通过 debug-overrides 信任；Manifest 的 application 指向对应的 networkSecurityConfig。只在 debuggable 调试包中生效。已有配置需合并 debug-overrides，自定义证书固定需在调试构建中适配。</div><div class="hint">CA 私钥仅保存在电脑，备份整个 CA 目录可迁移。客户端协商 HTTP/1.1，上游仍验证证书；解密详情仅留在本机内存，不写入终端日志。</div></details>
    </div>
    <div class="card"><h2>手机</h2><div id="devices"></div><div class="hint">勾选手机后，在设备快捷操作中统一执行；每台手机独立带宽，参数共用。</div></div>
    <div class="card"><h2>测试方案</h2><label>已保存的方案<select id="profiles"><option value="">选择方案…</option></select></label><div class="row toolbar"><button id="applyProfile">应用</button><button id="saveProfile">保存当前配置</button><button id="deleteProfile">删除</button></div><div class="row"><button id="exportProfiles">导出 JSON</button><button id="importProfiles">导入 JSON</button><input id="profileFile" type="file" accept=".json,application/json" hidden></div><div class="hint">方案保存在当前浏览器，包含参数、网络状态和黑白名单。应用前会展示范围并确认；导出可迁移到其他电脑。</div></div>
   </div>
   <div class="stack">
    <div id="settingsTools"><div class="card" id="deviceTools"><div class="head"><h2>设备操作</h2><span class="status" id="toolDeviceStatus"></span></div><div class="filters" style="grid-template-columns:1fr 1.5fr"><div class="device-picker-field"><span>执行手机</span><details class="device-picker" id="toolDevicePicker"><summary id="toolSelection">选择手机…</summary><div class="device-picker-menu"><div id="toolDeviceOptions"></div><div class="row toolbar"><button data-tool-select="all">全选空闲手机</button><button data-tool-select="none">取消全选</button></div></div></details></div><div class="package-field" id="toolPackageField"><label for="clrPkg">清空目标 App</label><div class="package-input"><input id="clrPkg" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="toolPkgOptions" autocomplete="off" placeholder="com.example.app"><button id="toolPkgToggle" aria-label="选择操作 App 包名" aria-expanded="false" aria-controls="toolPkgOptions">▾</button></div><div class="package-options" id="toolPkgOptions" role="listbox" aria-label="操作 App 包名候选" hidden></div></div></div><div class="row toolbar"><button class="danger" id="clrLaunchBtn">清空并启动</button><button class="danger" id="clrBtn">清空数据</button><span class="row" id="toolDeviceActions"></span></div><div class="status" id="clrMsg" role="status"></div><div class="hint">操作仅针对勾选手机，共用一组按钮；清空会清除该 App 的登录状态、缓存和配置，执行前会确认。</div></div></div>
-   <div id="settingsScope"><div class="card" id="scopeCard"><div class="head"><h2>作用范围</h2><label class="switch"><input type="checkbox" id="blOn">只对黑名单生效</label></div><div class="scope" id="scope"></div><div class="list-editors" id="scopeDetails">
+   <div id="settingsScope"><div class="card" id="scopeCard"><div class="head"><h2>作用范围</h2><label class="switch"><input type="checkbox" id="blOn">只对黑名单生效</label></div><div class="scope" id="scope"></div><details id="scopeEditor"><summary id="scopeEditorSummary">黑白名单 ▾</summary><div class="list-editors" id="scopeDetails">
 <div class="list-editor"><label for="blacklist">黑名单</label><textarea id="blacklist" rows="1" aria-label="黑名单域名或 App 包名" placeholder="api.example.com,com.example.app" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveBlacklist" aria-label="保存黑名单">保存</button><button id="resetBlacklist" aria-label="撤销黑名单草稿">撤销</button><button id="copyBlacklist" aria-label="复制黑名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="blacklistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="blacklistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
 <div class="list-editor"><label for="whitelist">白名单</label><textarea id="whitelist" rows="1" aria-label="白名单域名或 App 包名" placeholder="googleapis.com,com.android.vending" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveWhitelist" aria-label="保存白名单">保存</button><button id="resetWhitelist" aria-label="撤销白名单草稿">撤销</button><button id="copyWhitelist" aria-label="复制白名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="whitelistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="whitelistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
-</div><div class="hint warn" id="listConflict" hidden></div></div></div>
+</div></details><div class="hint warn" id="listConflict" hidden></div></div></div>
   </div>
  </div>
 </main>
 <dialog id="settingsDialog"><div class="head"><h2>设置</h2><button data-close="settingsDialog">关闭</button></div><div id="settingsBody" class="stack"></div></dialog>
 <div id="toast" class="toast" role="status" hidden></div>
 <dialog id="detailDialog"><div class="head"><h2>连接详情</h2><button data-close="detailDialog" aria-label="关闭详情">关闭</button></div><pre class="detail" id="detailText"></pre><button id="copyDetail">复制完整详情</button></dialog>
+<dialog id="requestDetailDialog"><div class="head"><h2 id="requestDetailTitle">请求详情</h2><div class="row"><button id="copyRequestDetail">复制全部</button><button data-close="requestDetailDialog">关闭</button></div></div><div id="requestDetailError" class="status bad" role="status"></div><div id="requestDetailURL" class="request-url"></div><div id="requestDetailMeta" class="request-detail-meta"></div><div id="requestDetailBody" class="request-columns"><section class="request-pane"><div class="head"><h3>请求</h3><button class="mini" id="copyRequest">复制请求</button></div><details open><summary>请求头</summary><pre id="requestHeaders"></pre></details><h4>请求体</h4><div id="requestBodyNote" class="hint"></div><pre id="requestBody"></pre></section><section class="request-pane"><div class="head"><h3>响应</h3><button class="mini" id="copyResponse">复制响应</button></div><details open><summary>响应头</summary><pre id="responseHeaders"></pre></details><h4>响应体</h4><div id="responseBodyNote" class="hint"></div><pre id="responseBody"></pre></section></div><div class="hint">保留最近 100 个已解密请求，每侧正文预览最多 64 KB，二进制仅显示大小。Authorization、Cookie 等敏感头已脱敏；正文按原内容预览。详情打开时跟随采集更新，选中文本时暂停更新正文。</div></dialog>
 <dialog id="copyDialog" class="copy-fallback"><div class="head"><h2>手动复制</h2><button data-close="copyDialog">关闭</button></div><p class="hint">浏览器未允许自动复制，内容已选中，请按 Ctrl+C / ⌘C。</p><textarea id="copyText" readonly aria-label="待复制内容"></textarea></dialog>
 <dialog id="actionDialog"><form method="dialog"><h2 id="actionTitle">确认操作</h2><p id="actionMessage" style="white-space:pre-wrap;overflow-wrap:anywhere"></p><label id="actionName" hidden>方案名称<input id="actionInput" maxlength="80" autocomplete="off"></label><div class="row toolbar" style="justify-content:flex-end"><button id="actionCancel" type="button">取消</button><button class="primary" value="ok">确认</button></div></form></dialog>
 <script>
@@ -191,25 +199,73 @@ function ask(message,withName=false){
 $('settingsBody').appendChild($('settingsExtras'));
 $('openSettings').onclick=()=>$('settingsDialog').showModal();
 let httpsDirty=false,httpsSaving=false,httpsEpoch=0;
+function httpsDomains(){return $('httpsDomains').value.split(/[,，\s]+/).filter(Boolean).map(v=>v.trim().toLowerCase().replace(/\.$/,''))}
+function httpsCovers(host){return !!state?.https?.enabled&&state.https.domains.some(d=>host.toLowerCase()===d||host.toLowerCase().endsWith('.'+d))}
+function httpsAction(host){return !host?'':`<button class="mini" data-https="${esc(host)}" ${httpsSaving||!state?.https||httpsCovers(host)?'disabled':''} title="添加此域名并开启 HTTPS 解密">${httpsCovers(host)?'已在解密列表':'+HTTPS 解密'}</button>`}
 function renderHTTPS(){
  const info=state?.https;
- $('httpsEnabled').disabled=!info||httpsSaving;$('httpsDomains').disabled=!info||httpsSaving;
- $('saveHTTPS').disabled=!info||httpsSaving;$('resetHTTPS').disabled=!info||httpsSaving;
+ for(const id of ['httpsEnabled','httpsDomains','httpsAddDomain','addHTTPS','saveHTTPS','resetHTTPS'])$(id).disabled=!info||httpsSaving;
  if(!info){$('httpsStatus').textContent='固定 CA 尚未初始化';return}
  if(!httpsDirty&&!httpsSaving){$('httpsEnabled').checked=info.enabled;const value=info.domains.join(', ');if($('httpsDomains').value!==value)$('httpsDomains').value=value}
- if(!httpsSaving)$('httpsStatus').textContent=httpsDirty?'有未保存修改':info.enabled?'已启用 · '+info.domains.length+' 个域名':'未启用解密';
+ if(!httpsSaving)$('httpsStatus').textContent=httpsDirty?'有未保存修改':info.enabled?'已启用 · '+info.domains.length+' 个域名':'未启用';
+ html('httpsDomainChips',info.domains.map(host=>`<span class="https-domain"><button class="link" data-host="${esc(host)}" title="筛选此域名">${esc(host)}</button><button data-https-remove="${esc(host)}" aria-label="移除解密域名 ${esc(host)}" ${httpsSaving?'disabled':''}>×</button></span>`).join('')||'<span class="status">尚未添加解密域名</span>');
  $('httpsIdentity').textContent='SHA-256：'+info.fingerprint+'；有效期至 '+info.expires.slice(0,10)+'；本机目录：'+info.directory;
 }
-$('httpsEnabled').onchange=$('httpsDomains').oninput=()=>{httpsDirty=true;renderHTTPS()};
+$('httpsDomains').oninput=()=>{httpsDirty=true;renderHTTPS()};
+$('httpsEnabled').onchange=()=>{httpsDirty=true;return saveHTTPSSettings()};
 $('resetHTTPS').onclick=()=>{httpsDirty=false;renderHTTPS()};
-$('saveHTTPS').onclick=async()=>{
- if(httpsSaving)return;
- const body={enabled:$('httpsEnabled').checked,domains:$('httpsDomains').value.split(/[,，\s]+/).filter(Boolean)};
+async function saveHTTPSSettings(){
+ if(httpsSaving||!state?.https)return false;
+ const body={enabled:$('httpsEnabled').checked,domains:httpsDomains(),reconnect:true};
  httpsSaving=true;httpsEpoch++;renderHTTPS();$('httpsStatus').textContent='正在保存…';
- try{const result=await request('/api/https',body);state.https=result;httpsEpoch++;httpsDirty=false;toast('HTTPS 设置已保存，新连接生效')}
- catch(error){httpsDirty=true;toast('保存失败：'+error.message,true)}
- finally{httpsSaving=false;renderHTTPS()}
-};
+ try{const result=await request('/api/https',body);state.https=result;httpsEpoch++;httpsDirty=false;toast('已保存，受影响的 HTTPS 连接已重连');return true}
+ catch(error){httpsDirty=true;toast('保存失败：'+error.message,true);return false}
+ finally{httpsSaving=false;renderHTTPS();if(displayState&&view==='monitor'){renderHosts();renderEvents()}}
+}
+$('saveHTTPS').onclick=()=>saveHTTPSSettings();
+async function addHTTPSDomain(host){
+ if(httpsSaving||!state?.https)return false;
+ if(!host?.trim()){toast('请填写解密域名',true);return false}
+ $('httpsDomains').value=[...new Set([...httpsDomains(),host.trim().toLowerCase().replace(/\.$/,'')])].join(', ');
+ $('httpsEnabled').checked=true;httpsDirty=true;return saveHTTPSSettings();
+}
+$('addHTTPS').onclick=async()=>{if(await addHTTPSDomain($('httpsAddDomain').value))$('httpsAddDomain').value=''};
+$('httpsAddDomain').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('addHTTPS').onclick()}});
+$('eventCASettings').onclick=()=>$('settingsDialog').showModal();
+
+let requestDetailID=0,requestDetailEpoch=0,requestDetailBusy=false,requestDetailData=null;
+function setText(id,value){if($(id).textContent!==value)$(id).textContent=value}
+function headerText(headers){return Object.entries(headers||{}).sort(([a],[b])=>a.localeCompare(b)).map(([key,values])=>values.map(value=>key+': '+value).join('\n')).join('\n')||'（无）'}
+function bodyText(body){
+ if(!body)return '（空）';
+ try{const value=JSON.parse(body),queue=[[value,0]];let count=0;while(queue.length){const [v,depth]=queue.pop();if(depth>12||++count>5000)return body;if(v&&typeof v==='object')for(const child of Object.values(v))queue.push([child,depth+1])}const pretty=JSON.stringify(value,null,2);return pretty.length<=131072?pretty:body}catch{return body}
+}
+function messageNote(m){return [`转发 ${fmtB(m.bytes)}`,m.complete?'正文已读完':'正文尚未读完',m.truncated?'预览已截断（最多 64 KB）':'',m.note].filter(Boolean).join(' · ')}
+function inspectionText(d,side){const m=d[side];return `${side==='request'?d.method+' '+d.url:'HTTP '+(d.status_code||'未收到响应')+' '+(d.protocol||'')}\n${headerText(m.headers)}\n\n${bodyText(m.body)}\n\n${messageNote(m)}`}
+function renderRequestDetail(d){
+ requestDetailData=d;$('copyRequestDetail').disabled=$('copyRequest').disabled=false;$('copyResponse').disabled=!d.status_code;
+ setText('requestDetailTitle',d.method+' · '+eventLabel(d)+(d.status_code?' · HTTP '+d.status_code:''));setText('requestDetailURL',d.url);
+ setText('requestDetailMeta',`${d.device} · ${d.serial} · ${d.app||'未识别 App'} · ${fmtMs(d.status==='active'?Date.now()-d.started:d.duration_ms)}${d.detail?' · '+d.detail:''}`);
+ if(hasSelection('requestDetailBody'))return;
+ for(const side of ['request','response']){setText(side+'Headers',headerText(d[side].headers));setText(side+'Body',bodyText(d[side].body));setText(side+'BodyNote',side==='response'&&!d.status_code?'尚未收到上游响应':messageNote(d[side]))}
+}
+async function refreshRequestDetail(){
+ if(!requestDetailID||requestDetailBusy||stopped)return;
+ requestDetailBusy=true;const epoch=requestDetailEpoch,id=requestDetailID;
+ try{const data=await request('/api/requests/'+id);if(epoch!==requestDetailEpoch)return;setText('requestDetailError','');renderRequestDetail(data)}
+ catch(error){if(epoch===requestDetailEpoch)setText('requestDetailError',error.message)}
+ finally{if(epoch===requestDetailEpoch)requestDetailBusy=false}
+}
+async function openRequestDetail(id){
+ requestDetailID=Number(id);requestDetailEpoch++;requestDetailBusy=false;requestDetailData=null;
+ setText('requestDetailTitle','请求详情');setText('requestDetailURL','');setText('requestDetailMeta','');setText('requestDetailError','正在加载…');
+ for(const side of ['request','response'])for(const suffix of ['Headers','Body','BodyNote'])setText(side+suffix,'');
+ $('copyRequestDetail').disabled=$('copyRequest').disabled=$('copyResponse').disabled=true;$('requestDetailDialog').showModal();await refreshRequestDetail();
+}
+$('requestDetailDialog').addEventListener('close',()=>{requestDetailID=0;requestDetailEpoch++;requestDetailBusy=false;requestDetailData=null});
+$('copyRequestDetail').onclick=()=>{if(requestDetailData)copyText(inspectionText(requestDetailData,'request')+'\n\n'+inspectionText(requestDetailData,'response'))};
+$('copyRequest').onclick=()=>{if(requestDetailData)copyText(inspectionText(requestDetailData,'request'))};
+$('copyResponse').onclick=()=>{if(requestDetailData)copyText(inspectionText(requestDetailData,'response'))};
 
 $('actionCancel').onclick=()=>$('actionDialog').close('cancel');
 $('actionDialog').addEventListener('close',()=>{const resolve=actionResolve;actionResolve=null;if(resolve)resolve($('actionDialog').returnValue==='ok'?($('actionName').hidden?true:$('actionInput').value.trim()):null)});
@@ -290,6 +346,7 @@ function renderLists(){
   $('reset'+(list==='blacklist'?'Blacklist':'Whitelist')).disabled=!dirty[list];
  }
  const white=listItems($('whitelist').value),black=listItems($('blacklist').value);
+ $('scopeEditorSummary').textContent=`黑名单 ${black.length} · 白名单 ${white.length}${dirty.blacklist||dirty.whitelist?' · 草稿':''} ▾`;
  const conflicts=black.filter(item=>white.some(w=>item===w||item.endsWith('.'+w)));
  $('listConflict').textContent=conflicts.length?`白名单优先：${conflicts.join('、')} 将被豁免弱网（含白名单子域名）。`:'逗号、空格或换行分隔，保存时自动去重。删除标签后需保存。';
  $('listConflict').classList.toggle('warn',!!conflicts.length);$('listConflict').hidden=!conflicts.length;
@@ -417,7 +474,7 @@ function renderHosts(){
   const device=lanes.length>1?`<tr class="devrow"><td>${esc(items[0].device)} <span class="status">${esc(serial)}</span></td><td class="n">${sum(items).toFixed(1)}</td><td></td><td></td></tr>`:'';
   return device+group(items,h=>h.app||'-').map(([app,hosts])=>{
    const pkg=app.replace(/ \(\+\d+\)$/,''),queue=hosts.reduce((total,h)=>total+(h.bypass?0:h.queued_kb),0);
-   return `<tr class="grp"><td><div class="traffic-item"><button class="link host-name" title="按此 App 筛选" data-app="${esc(app)}" data-serial="${esc(serial)}">${esc(app==='-'?'（未识别）':app)}</button><div class="actions">${app==='-'?'':copyButton(pkg,'复制包名')}${PKG_RE.test(pkg)?listActions(pkg):''}</div></div></td><td class="n">${sum(hosts).toFixed(1)}</td><td class="n">${queue}</td><td></td></tr>`+hosts.map(h=>`<tr class="sub"><td><div class="traffic-item"><button class="link host-name" title="按此域名筛选" data-host="${esc(h.host)}">${esc(h.host)}</button><div class="actions">${copyButton(h.host,'复制域名')}${listActions(h.host)}</div></div></td><td class="n">${h.kbs}</td><td class="n">${h.bypass?'<span class="tag">直连</span>':h.queued_kb}</td><td><div class="bar" style="width:${100*h.kbs/max}%"></div></td></tr>`).join('');
+   return `<tr class="grp"><td><div class="traffic-item"><button class="link host-name" title="按此 App 筛选" data-app="${esc(app)}" data-serial="${esc(serial)}">${esc(app==='-'?'（未识别）':app)}</button><div class="actions">${app==='-'?'':copyButton(pkg,'复制包名')}${PKG_RE.test(pkg)?listActions(pkg):''}</div></div></td><td class="n">${sum(hosts).toFixed(1)}</td><td class="n">${queue}</td><td></td></tr>`+hosts.map(h=>`<tr class="sub"><td><div class="traffic-item"><button class="link host-name" title="按此域名筛选" data-host="${esc(h.host)}">${esc(h.host)}</button><div class="actions">${copyButton(h.host,'复制域名')}${listActions(h.host)}${httpsAction(h.host)}</div></div></td><td class="n">${h.kbs}</td><td class="n">${h.bypass?'<span class="tag">直连</span>':h.queued_kb}</td><td><div class="bar" style="width:${100*h.kbs/max}%"></div></td></tr>`).join('');
   }).join('');
  }).join(''));
 }
@@ -463,7 +520,7 @@ function eventInScope(e){
 function filteredEvents(){
  const type=$('evType').value,source=$('evSource').value,status=$('evStatus').value,q=$('evSearch').value.trim().toLowerCase();
  const rows=displayState?.event_details||displayState?.events?.map(text=>({text,status:/\[(资源|HTTP|HTTPS 隧道)\]/.test(text)?'unknown':''}))||[];
- return rows.filter(e=>eventInScope(e)&&(!type||(type==='system'?!/\[(资源|HTTP|HTTPS 隧道)\]/.test(e.text):e.text.includes('['+type+']')))&&(!source||e.text.includes('['+source+']'))&&(!status||(status==='errors'?['failed','timeout'].includes(e.status):e.status===status))&&(!q||(e.text+' '+(e.detail||'')).toLowerCase().includes(q)));
+ return rows.filter(e=>eventInScope(e)&&(!type||(type==='decrypted'?e.decrypted:type==='system'?!/\[(资源|HTTP|HTTPS 隧道)\]/.test(e.text):e.text.includes('['+type+']')))&&(!source||e.text.includes('['+source+']'))&&(!status||(status==='errors'?['failed','timeout'].includes(e.status):e.status===status))&&(!q||(e.text+' '+(e.detail||'')).toLowerCase().includes(q)));
 }
 function eventLabel(e){if(e.scope==='tunnel'&&e.status==='active')return '连接中';if(e.scope==='tunnel'&&e.status==='complete')return '隧道已结束';return {active:'请求中',complete:'请求完成',failed:'请求失败',timeout:'请求失败（超时）',unknown:'结果未知'}[e.status]||''}
 function eventText(e){return e.text+(eventLabel(e)?` · [${eventLabel(e)}]`:'')+(e.detail?' · '+e.detail:'')}
@@ -471,15 +528,15 @@ function eventAddress(line){return /\[(?:资源|HTTP)\]\[(?:代理|App 日志)\]
 function eventContent(e){
  const request=/^([0-9:]+) \[([^\]]+)\] \[(资源|HTTP|HTTPS 隧道)\]\[(代理|App 日志)\] (.*)$/.exec(e.text);
  if(!request)return `<div class="event-text">${esc(e.text)}</div>`;
- let address=request[5];if(e.app){const suffix=' · '+e.app,index=address.lastIndexOf(suffix);if(index>=0)address=address.slice(0,index)+address.slice(index+suffix.length)}
+ let address=request[5];if(e.decrypted)address=address.replace(' · HTTPS 解密','');if(e.app){const suffix=' · '+e.app,index=address.lastIndexOf(suffix);if(index>=0)address=address.slice(0,index)+address.slice(index+suffix.length)}
  const cls={active:'warn',complete:'on',failed:'bad',timeout:'bad'}[e.status]||'',label=eventLabel(e);
- return `<div class="event-meta"><time>${esc(request[1])}</time>${label?`<span class="tag ${cls}">${esc(label)}</span>`:''}<span>${esc(request[3])} · ${esc(request[4])}</span>${!($('evFollow').checked&&fSerial)?`<span>${esc(request[2])}</span>`:''}${e.app&&!($('evFollow').checked&&fApp)?`<button class="link event-app" data-app="${esc(e.app==='未识别 App'?'-':e.app)}" data-serial="${esc(e.serial||'')}" title="按此 App 筛选">${esc(e.app)}</button>`:''}</div><div class="event-text">${esc(address)}</div>`;
+ return `<div class="event-meta"><time>${esc(request[1])}</time>${label?`<span class="tag ${cls}">${esc(label)}</span>`:''}<span>${esc(request[3])} · ${esc(request[4])}</span>${e.decrypted?'<span class="tag on">HTTPS 已解密</span>':''}${!($('evFollow').checked&&fSerial)?`<span>${esc(request[2])}</span>`:''}${e.app&&!($('evFollow').checked&&fApp)?`<button class="link event-app" data-app="${esc(e.app==='未识别 App'?'-':e.app)}" data-serial="${esc(e.serial||'')}" title="按此 App 筛选">${esc(e.app)}</button>`:''}</div><div class="event-text">${esc(address)}</div>`;
 }
 function renderEvents(){
  if(hasSelection('events'))return;
  const rows=filteredEvents(),scope=$('evFollow').checked&&(fSerial||fApp||fHost)?' · 跟随观测范围':'';$('evCount').textContent=`显示 ${rows.length} / ${displayState.events.length} 条 · 最新在前${scope}${paused?' · 已暂停刷新':''}`;
  $('evAdvancedCount').textContent=[$('evType').value,$('evSource').value].filter(Boolean).length?' · 已筛选':'';
- html('events',rows.map(e=>{const address=eventAddress(e.text);return `<article class="event"><div>${eventContent(e)}${e.detail?`<div class="hint">${esc(e.detail)}</div>`:''}</div><div class="event-actions">${address?copyButton(address,'复制地址'):''}${copyButton(eventText(e),'复制整条')}</div></article>`}).join('')||'<div class="empty">没有符合条件的事件</div>');
+ html('events',rows.map(e=>{const address=eventAddress(e.text);return `<article class="event"><div>${eventContent(e)}${e.detail?`<div class="hint">${esc(e.detail)}</div>`:''}</div><div class="event-actions">${e.decrypted?`<button class="mini" data-request-detail="${e.id}">请求 / 响应</button>`:''}${e.host?listActions(e.host)+httpsAction(e.host):''}${address?copyButton(address,'复制地址'):''}${copyButton(eventText(e),'复制整条')}</div></article>`}).join('')||'<div class="empty">没有符合条件的事件</div>');
  $('copyEvents').disabled=$('exportEvents').disabled=!rows.length;
 }
 for(const id of ['evType','evSearch','evSource','evStatus'])$(id).addEventListener(id==='evSearch'?'input':'change',()=>{if(displayState)renderEvents()});
@@ -638,10 +695,13 @@ $('quit').onclick=async()=>{
  try{await request('/api/quit',{});stopped=true;document.body.innerHTML='<main class="shell"><div class="card"><h1>正在退出模拟器</h1><p>退出请求已接受，正在恢复手机网络。请等待程序结束后关闭页面。</p></div></main>'}
  catch(error){$('quit').disabled=false;toast('退出请求未确认：'+error.message+'。请检查程序状态。',true)}
 };
-document.addEventListener('click',e=>{document.querySelectorAll('.list-menu[open],.device-picker[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false})});
+document.addEventListener('click',e=>{document.querySelectorAll('.list-menu[open],.device-picker[open],#scopeEditor[open]').forEach(menu=>{if(!menu.contains(e.target))menu.open=false})});
 document.addEventListener('click',async e=>{
  const button=e.target.closest('button');if(!button||button.disabled)return;const d=button.dataset;
  if(d.view){selectView(d.view);return}if(d.copy!==undefined){copyText(d.copy);return}if(d.close){$(d.close).close();return}
+ if(d.https){await addHTTPSDomain(d.https);return}
+ if(d.httpsRemove){if(httpsSaving)return;$('httpsDomains').value=httpsDomains().filter(host=>host!==d.httpsRemove).join(', ');if(!httpsDomains().length)$('httpsEnabled').checked=false;httpsDirty=true;await saveHTTPSSettings();return}
+ if(d.requestDetail){await openRequestDetail(d.requestDetail);return}
  if(d.retry!==undefined){flushParams();return}
  if(d.toolSelect){toolSerials=d.toolSelect==='all'?new Set(state.devices.filter(d=>d.state==='device'&&!d.busy).map(d=>d.serial)):new Set();storeToolSelection();return}
  if(d.toolAction){const serials=toolTargets();if(serials)await submitToolAction(d.toolAction,{},serials);return}
@@ -655,11 +715,11 @@ document.addEventListener('click',async e=>{
  if(d.preset){button.disabled=true;if(!await flushParams()){button.disabled=false;return}try{await queueConfig({},'/api/preset/'+encodeURIComponent(d.preset));toast('档位已切换');renderConfig();await refresh()}catch(error){toast('切换失败：'+error.message,true)}finally{button.disabled=false}return}
  if(d.o!==undefined){button.disabled=true;await changeConfig({outage:d.o},'网络状态已更新');button.disabled=false}
 });
-window.addEventListener('beforeunload',event=>{if(dirty.blacklist||dirty.whitelist||Object.keys(pending).length||[...savingKeys.values()].some(Boolean)){event.preventDefault();event.returnValue=''}});
+window.addEventListener('beforeunload',event=>{if(httpsDirty||dirty.blacklist||dirty.whitelist||Object.keys(pending).length||[...savingKeys.values()].some(Boolean)){event.preventDefault();event.returnValue=''}});
 window.addEventListener('resize',()=>{if(displayState&&view==='monitor')renderLane()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refresh();refreshConns();refreshLogs()}});
 renderProfiles();selectView(view);refresh();
-setInterval(()=>{if(!document.hidden){refresh();refreshLogs()}},1000);
+setInterval(()=>{if(!document.hidden){refresh();refreshLogs();refreshRequestDetail()}},1000);
 setInterval(()=>refreshConns(),2000);
 </script>
 </body>

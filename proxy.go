@@ -421,6 +421,7 @@ type Lane struct {
 }
 
 type connPair struct {
+	tunnel           bool
 	client, upstream net.Conn
 	pipes            []*Pipe
 	record           *ConnRecord
@@ -471,14 +472,21 @@ func (l *Lane) event(msg string) { l.app.event(fmt.Sprintf("[%s] %s", l.name, ms
 
 // resetConns 断开连接；shapedOnly 时只断开走弱网（黑名单内）的连接，直连的不受影响
 func (l *Lane) resetConns(shapedOnly bool) {
+	l.resetMatching(func(c *connPair) bool { return !shapedOnly || c.pipes != nil }, "网络连接已主动断开")
+}
+
+func (l *Lane) resetMatching(match func(*connPair) bool, reason string) int {
 	l.mu.Lock()
+	defer l.mu.Unlock()
+	count := 0
 	for c := range l.active {
-		if shapedOnly && c.pipes == nil {
+		if !match(c) {
 			continue
 		}
 		delete(l.active, c)
+		count++
 		if c.record != nil {
-			c.record.finish("failed", "网络连接已主动断开")
+			c.record.finish("failed", reason)
 		}
 		c.client.Close()
 		c.upstream.Close()
@@ -486,7 +494,7 @@ func (l *Lane) resetConns(shapedOnly bool) {
 			p.markClosed()
 		}
 	}
-	l.mu.Unlock()
+	return count
 }
 
 func readHead(br *bufio.Reader) (string, error) {
@@ -625,7 +633,7 @@ func (l *Lane) relayShaped(conn net.Conn, br *bufio.Reader, upstream net.Conn, k
 	}
 	upPipe := newPipe(l, l.up, upstream, key, onDead, &rec.up, onError)
 	downPipe := newPipe(l, l.down, conn, key, onDead, &rec.down, onError)
-	pair := &connPair{client: conn, upstream: upstream, pipes: []*Pipe{upPipe, downPipe}, record: rec}
+	pair := &connPair{tunnel: method == "CONNECT", client: conn, upstream: upstream, pipes: []*Pipe{upPipe, downPipe}, record: rec}
 	l.mu.Lock()
 	l.active[pair] = struct{}{}
 	l.mu.Unlock()
@@ -664,7 +672,7 @@ func (l *Lane) relayShaped(conn net.Conn, br *bufio.Reader, upstream net.Conn, k
 
 // bypass 不走弱网的域名（白名单内，或黑名单开启时不在黑名单内）：直连转发，只统计流量
 func (l *Lane) bypass(conn net.Conn, br *bufio.Reader, upstream net.Conn, key, method string, initial []byte, rec *ConnRecord, onError func(error)) {
-	pair := &connPair{client: conn, upstream: upstream, record: rec}
+	pair := &connPair{tunnel: method == "CONNECT", client: conn, upstream: upstream, record: rec}
 	l.mu.Lock()
 	l.active[pair] = struct{}{}
 	l.mu.Unlock()

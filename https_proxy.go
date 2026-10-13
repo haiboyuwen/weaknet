@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -115,21 +116,38 @@ func (l *Lane) httpsHandler(host, port, app string, shaped bool, transport http.
 			mode = "弱网"
 		}
 		id := l.requestEvent("代理", app, r.Method, "https://"+target+r.URL.RequestURI(), " · HTTPS 解密 · "+mode)
+		address, _ := displayURL("https://" + target + r.URL.RequestURI())
+		l.app.inspections.begin(id, l, app, r.Method, address, r)
+		if r.Body != nil && r.Body != http.NoBody {
+			r.Body = &inspectionBody{ReadCloser: r.Body, store: &l.app.inspections, id: id}
+		}
 		start := time.Now()
 		status := 0
 		failed := false
 		completed := false
+
+		var finalErr error
 		defer func() {
-			if !failed {
-				if !completed {
-					l.app.finishEvent(id, "failed", "响应传输中断")
-				} else if status >= 400 {
-					l.app.finishEvent(id, "failed", fmt.Sprintf("HTTP %d · %s", status, time.Since(start).Round(time.Millisecond)))
-				} else {
-					l.app.finishEvent(id, "complete", fmt.Sprintf("HTTP %d · %s", status, time.Since(start).Round(time.Millisecond)))
+			result, detail := "complete", fmt.Sprintf("HTTP %d · %s", status, time.Since(start).Round(time.Millisecond))
+			if failed {
+				result = "failed"
+				if finalErr != nil {
+					detail = finalErr.Error()
+					var timeout net.Error
+					if errors.As(finalErr, &timeout) && timeout.Timeout() {
+						result = "timeout"
+					}
 				}
+			} else if !completed {
+				result = "failed"
+				detail = "响应传输中断"
+			} else if status >= 400 {
+				result = "failed"
 			}
+			l.app.finishEvent(id, result, detail)
+			l.app.inspections.finish(id, result, detail)
 		}()
+
 		proxy := &httputil.ReverseProxy{
 			Transport: transport,
 			Rewrite: func(pr *httputil.ProxyRequest) {
@@ -137,9 +155,17 @@ func (l *Lane) httpsHandler(host, port, app string, shaped bool, transport http.
 				pr.Out.URL.Host = target
 				pr.Out.Host = target
 			},
-			ModifyResponse: func(resp *http.Response) error { status = resp.StatusCode; return nil },
+			ModifyResponse: func(resp *http.Response) error {
+				status = resp.StatusCode
+				l.app.inspections.response(id, resp)
+				if status != http.StatusSwitchingProtocols && resp.Body != nil && resp.Body != http.NoBody {
+					resp.Body = &inspectionBody{ReadCloser: resp.Body, store: &l.app.inspections, id: id, response: true}
+				}
+				return nil
+			},
 			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 				failed = true
+				finalErr = err
 				l.app.failEvent(id, err)
 				http.Error(w, "HTTPS 上游请求失败", http.StatusBadGateway)
 			},
@@ -148,6 +174,7 @@ func (l *Lane) httpsHandler(host, port, app string, shaped bool, transport http.
 		if !failed && status != http.StatusSwitchingProtocols {
 			if err := http.NewResponseController(w).Flush(); err != nil {
 				failed = true
+				finalErr = err
 				l.app.failEvent(id, err)
 			}
 		}

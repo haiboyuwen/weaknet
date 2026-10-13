@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 func (a *App) httpsRoutes(mux *http.ServeMux) {
@@ -27,18 +29,26 @@ func (a *App) httpsRoutes(mux *http.ServeMux) {
 		if !ready(w) {
 			return
 		}
-		var s HTTPSSettings
+		var input struct {
+			HTTPSSettings
+			Reconnect bool `json:"reconnect"`
+		}
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
 		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&s); err != nil {
+		if err := decoder.Decode(&input); err != nil {
 			http.Error(w, err.Error(), 400)
 			return
 		}
-		if err := a.https.update(s); err != nil {
+		previous := a.https.status().HTTPSSettings
+		if err := a.https.update(input.HTTPSSettings); err != nil {
 			http.Error(w, err.Error(), 400)
 			return
 		}
-		a.event("HTTPS 解密设置已保存，对新连接生效")
+		count := 0
+		if input.Reconnect {
+			count = a.reconnectHTTPS(previous, a.https.status().HTTPSSettings)
+		}
+		a.event(fmt.Sprintf("HTTPS 解密设置已保存，重连 %d 条受影响的 HTTPS 连接", count))
 		status(w)
 	})
 	mux.HandleFunc("GET /api/https/ca.crt", func(w http.ResponseWriter, r *http.Request) {
@@ -58,4 +68,23 @@ func (a *App) httpsRoutes(mux *http.ServeMux) {
 		w.Header().Set("Content-Disposition", `attachment; filename="network_security_config.xml"`)
 		w.Write([]byte(androidDebugConfig))
 	})
+}
+
+func (a *App) reconnectHTTPS(before, after HTTPSSettings) int {
+	applies := func(s HTTPSSettings, host string) bool {
+		return s.Enabled && matchDomain(strings.ToLower(strings.TrimSuffix(host, ".")), s.Domains)
+	}
+	a.mu.Lock()
+	lanes := make([]*Lane, 0, len(a.lanes))
+	for _, l := range a.lanes {
+		lanes = append(lanes, l)
+	}
+	a.mu.Unlock()
+	count := 0
+	for _, l := range lanes {
+		count += l.resetMatching(func(c *connPair) bool {
+			return c.tunnel && c.record != nil && applies(before, c.record.Host) != applies(after, c.record.Host)
+		}, "HTTPS 解密范围变化，重新建立连接")
+	}
+	return count
 }

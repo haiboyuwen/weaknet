@@ -42,8 +42,9 @@ type App struct {
 	pkgMu sync.Mutex
 	pkgs  map[string]*pkgCache // serial -> UID 包名缓存
 
-	conns   ConnStore // 历史连接
-	adbLogs adbLogStore
+	inspections inspectionStore
+	conns       ConnStore // 历史连接
+	adbLogs     adbLogStore
 
 	evMu         sync.Mutex
 	events       []string

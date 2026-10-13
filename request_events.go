@@ -14,14 +14,15 @@ import (
 )
 
 type EventView struct {
-	ID     uint64 `json:"id"`
-	Text   string `json:"text"`
-	Status string `json:"status,omitempty"` // active | complete | failed | timeout | unknown
-	Scope  string `json:"scope,omitempty"`  // http | tunnel | log
-	Detail string `json:"detail,omitempty"`
-	Serial string `json:"serial,omitempty"`
-	App    string `json:"app,omitempty"`
-	Host   string `json:"host,omitempty"`
+	Decrypted bool   `json:"decrypted,omitempty"`
+	ID        uint64 `json:"id"`
+	Text      string `json:"text"`
+	Status    string `json:"status,omitempty"` // active | complete | failed | timeout | unknown
+	Scope     string `json:"scope,omitempty"`  // http | tunnel | log
+	Detail    string `json:"detail,omitempty"`
+	Serial    string `json:"serial,omitempty"`
+	App       string `json:"app,omitempty"`
+	Host      string `json:"host,omitempty"`
 }
 
 // 更新原事件，不增加日志条数；已经离开最近 300 条的事件不再保留。
@@ -164,7 +165,8 @@ func (l *Lane) requestEvent(source, app, method, raw, detail string) uint64 {
 		status, scope = "active", "http"
 	}
 	u, _ := url.Parse(raw)
-	return l.app.recordEvent(EventView{Text: fmt.Sprintf("[%s] [%s][%s] %s · %s%s", l.name, requestKind(raw), source, address, app, detail), Status: status, Scope: scope, Serial: l.serial, App: app, Host: u.Hostname()})
+	decrypted := source == "代理" && strings.Contains(detail, "HTTPS 解密")
+	return l.app.recordEvent(EventView{Text: fmt.Sprintf("[%s] [%s][%s] %s · %s%s", l.name, requestKind(raw), source, address, app, detail), Status: status, Scope: scope, Serial: l.serial, App: app, Host: u.Hostname(), Decrypted: decrypted})
 }
 
 func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) uint64 {

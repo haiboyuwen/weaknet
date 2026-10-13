@@ -172,5 +172,26 @@ test('HTTPS 轮询保留域名草稿，保存失败也不丢失，成功使用�
  h.setHandler(()=>({ok:false,text:async()=>JSON.stringify({error:'disk full'})}));await h.run("$('saveHTTPS').onclick()");
  assert.equal(h.element('httpsDomains').value,'api.example， cdn.example');assert.equal(h.run('httpsDirty'),true);
  h.setHandler(()=>h.response({...h.state.https,enabled:true,domains:['api.example','cdn.example']}));await h.run("$('saveHTTPS').onclick()");
- assert.deepEqual(JSON.parse(h.calls.at(-1).options.body),{enabled:true,domains:['api.example','cdn.example']});assert.equal(h.run('httpsDirty'),false);assert.equal(h.element('httpsDomains').value,'api.example, cdn.example');
+ assert.deepEqual(JSON.parse(h.calls.at(-1).options.body),{enabled:true,domains:['api.example','cdn.example'],reconnect:true});assert.equal(h.run('httpsDirty'),false);assert.equal(h.element('httpsDomains').value,'api.example, cdn.example');
+});
+
+test('工作台域名快捷添加保存并启用解密，失败保留草稿且不改已保存列表',async()=>{
+ const h=setup();h.state.https={enabled:false,domains:['old.example'],fingerprint:'ABCD',expires:'2036-10-12',directory:'/local/weaknet'};h.run('renderHTTPS()');
+ h.setHandler((url,options)=>h.response({...h.state.https,...JSON.parse(options.body)}));
+ assert.equal(await h.run("addHTTPSDomain('API.Example.')"),true);
+ assert.deepEqual(JSON.parse(h.calls[0].options.body),{enabled:true,domains:['old.example','api.example'],reconnect:true});assert.match(h.element('httpsDomainChips').innerHTML,/api.example/);assert.equal(h.run("httpsCovers('cdn.api.example')"),true);assert.equal(h.run("httpsCovers('evilapi.example')"),false);
+ h.setHandler(()=>({ok:false,text:async()=>JSON.stringify({error:'disk full'})}));assert.equal(await h.run("addHTTPSDomain('new.example')"),false);
+ assert.match(h.element('httpsDomains').value,/new.example/);assert.doesNotMatch(h.element('httpsDomainChips').innerHTML,/new.example/);assert.equal(h.run('httpsDirty'),true);
+});
+test('请求事件提供域名名单和解密操作，只有已解密事件提供请求响应详情',()=>{
+ const h=setup();h.state.https={enabled:true,domains:['api.example']};h.state.event_details=[{id:1,text:'12:00:00 [phone] [HTTP][代理] GET https://api.example/a · com.example.app · HTTPS 解密 · 弱网',host:'api.example',status:'complete',scope:'http',decrypted:true},{id:2,text:'12:00:01 [phone] [HTTP][App 日志] https://other.example/a',host:'other.example',status:'unknown',scope:'log'}];h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');
+ assert.match(h.element('events').innerHTML,/data-request-detail="1"/);assert.doesNotMatch(h.element('events').innerHTML,/data-request-detail="2"/);assert.match(h.element('events').innerHTML,/data-list="blacklist" data-item="other.example"/);assert.match(h.element('events').innerHTML,/data-https="other.example"/);assert.match(h.element('events').innerHTML,/HTTPS 已解密/);
+ h.element('evType').value='decrypted';assert.equal(h.run('filteredEvents().length'),1);
+});
+test('请求详情拒绝旧响应覆盖新请求，并正确显示文本正文与脱敏头',async()=>{
+ const h=setup(),pending=[];h.setHandler(()=>new Promise(resolve=>pending.push(resolve)));
+ const first=h.run('openRequestDetail(1)'),second=h.run('openRequestDetail(2)');
+ const detail=(id,body)=>({id,method:'POST',url:'https://api.example/'+id,status:'complete',status_code:200,protocol:'HTTP/2.0',duration_ms:24,device:'phone',serial:'A',app:'com.example.app',request:{headers:{Authorization:['REDACTED']},body:'{"room":123}',bytes:12,complete:true,truncated:false},response:{headers:{'Content-Type':['application/json']},body,bytes:20,complete:true,truncated:false}});
+ pending[1](h.response(detail(2,'{"ok":true}')));await second;pending[0](h.response(detail(1,'old data')));await first;
+ assert.equal(h.element('requestDetailURL').textContent,'https://api.example/2');assert.match(h.element('responseBody').textContent,/"ok": true/);assert.equal(h.element('requestHeaders').textContent,'Authorization: REDACTED');assert.match(h.run("inspectionText(requestDetailData,'response')"),/HTTP 200 HTTP\/2.0/);assert.doesNotMatch(h.element('responseBody').textContent,/old data/);
 });
