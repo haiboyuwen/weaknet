@@ -260,3 +260,12 @@ test('实时请求始终排除 App 日志和工具事件，计数与协议筛选
  h.run("requestProtocol='';requestContentType='json';renderEvents()");assert.equal(h.run('filteredEvents().map(e=>e.id).join()'),'1');
  h.state.event_details=undefined;h.run("requestContentType='';renderEvents()");assert.equal(h.run('filteredEvents().length'),2);assert.doesNotMatch(h.element('events').innerHTML,/App 日志|tool event/);
 });
+
+test('表格序号在隐藏日志、筛选和排序后连续，详情与选中仍绑定原请求 ID',()=>{
+ const h=setup(),make=(id,path)=>({id,scope:'http',status:'complete',text:`12:00:00 [phone] [HTTP][代理] GET https://api.example/${path}`});
+ h.state.event_details=[make(192,'new'),{...make(180,'log'),scope:'log'},make(172,'middle'),make(20,'old')];h.state.events=h.state.event_details.map(e=>e.text);
+ const numbers=()=>[...h.element('events').innerHTML.matchAll(/<td class="row-id"[^>]*>(\d+)<\/td>/g)].map(m=>Number(m[1]));
+ h.run('renderEvents()');assert.deepEqual(numbers(),[3,2,1]);assert.match(h.element('events').innerHTML,/title="请求 ID 192">3/);assert.match(h.element('events').innerHTML,/data-request-detail="192"/);
+ h.element('evSearch').value='middle';h.run('requestSelected=172;renderEvents()');assert.deepEqual(numbers(),[1]);assert.match(h.element('events').innerHTML,/data-request-row="172" aria-selected="true"/);assert.match(h.element('events').innerHTML,/data-request-detail="172"/);
+ h.element('evSearch').value='';h.run('requestSortDesc=false;renderEvents()');assert.deepEqual(numbers(),[1,2,3]);assert.match(h.element('events').innerHTML,/title="请求 ID 20">1/);
+});
