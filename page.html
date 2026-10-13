@@ -60,7 +60,7 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 #globalFilters{padding:0}#globalFilters>.head{align-items:center;margin-bottom:8px}#globalFilters .filters{gap:8px}#globalFilters .filters>label{display:flex;align-items:center;gap:8px;white-space:nowrap}#globalFilters input,#globalFilters select{font-size:12px;padding:5px 8px}#globalFilters button{font-size:12px;padding:5px 9px}
 #observationCard{padding:12px 14px}#observationCard #trendCard{padding:10px 0 0;margin-top:10px;border-top:1px solid var(--line);border-radius:0;grid-template-columns:minmax(160px,1fr) minmax(0,3fr) auto}#trendCard #chartTitle{max-width:100%}#trendCard .kpis{gap:12px}
 .traffic-item>.host-name{color:var(--ink);font:inherit;font-weight:inherit;flex:0 1 auto}.traffic-item>.host-name:hover{color:var(--accent)}.traffic-item>.actions{flex:0 0 auto}.traffic-item .mini{font-weight:400}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.event-toolbar{display:flex;gap:8px;align-items:center;margin:10px 0}.event-query{flex:1}.event-toolbar>label{min-width:0}.event-toolbar input,.event-toolbar select{font-size:12px;padding:5px 8px}.event-toolbar>details{margin:0;position:relative}.event-toolbar>details>summary{white-space:nowrap;padding:5px 8px;border:1px solid var(--line);border-radius:7px;list-style:none}.event-advanced{position:absolute;right:0;top:100%;z-index:3;display:grid;gap:10px;width:240px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0003}.event-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--quiet);margin-bottom:3px}.event-meta .tag{font-size:10px;padding:0 5px}.event-app{font-size:11px;overflow-wrap:anywhere}.event-text{line-height:1.65}#eventsCard>.head{align-items:center}#eventsCard>.head button{font-size:12px;padding:5px 9px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.event-toolbar{display:flex;gap:8px;align-items:center;margin:10px 0}.event-query{flex:1}.event-toolbar>label{min-width:0}.event-toolbar input,.event-toolbar select{font-size:12px;padding:5px 8px}.event-toolbar>details{margin:0;position:relative}.event-toolbar>details>summary{white-space:nowrap;padding:5px 8px;border:1px solid var(--line);border-radius:7px;list-style:none}.event-advanced{position:absolute;right:0;top:100%;z-index:3;display:grid;gap:10px;width:240px;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0003}.event-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--quiet);margin-bottom:3px}.event-meta .tag{font-size:10px;padding:0 5px}.event-app{font-size:11px;overflow-wrap:anywhere}.event-text{line-height:1.65}.event-open{display:block;width:100%;text-align:left;font:12px/1.65 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;border:0;padding:2px 0;border-radius:3px;background:transparent;justify-content:flex-start}.event-open:hover{color:var(--accent);background:var(--soft)}.request-guide{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}.request-guide p{font-size:12px;margin:0 0 8px;white-space:pre-wrap;overflow-wrap:anywhere}#eventsCard>.head{align-items:center}#eventsCard>.head button{font-size:12px;padding:5px 9px}
 @media(max-width:960px){#globalFilters .filters{grid-template-columns:1fr 1fr}#observationCard #trendCard{grid-template-columns:minmax(0,1fr) auto}#observationCard #laneBody{grid-column:1/-1;grid-row:2}}
 @media(max-width:600px){#globalFilters .filters>label{display:grid;gap:3px}#globalFilters>.head>.status{display:none}.event-toolbar{flex-wrap:wrap}.event-query{flex-basis:100%}.event-toolbar>label:not(.event-query){flex:1}#observationCard{padding:10px}.traffic-item{gap:4px 7px}.traffic-item>.actions{flex-wrap:wrap;flex-shrink:1}}
 
@@ -146,7 +146,7 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 <dialog id="settingsDialog"><div class="head"><h2>设置</h2><button data-close="settingsDialog">关闭</button></div><div id="settingsBody" class="stack"></div></dialog>
 <div id="toast" class="toast" role="status" hidden></div>
 <dialog id="detailDialog"><div class="head"><h2>连接详情</h2><button data-close="detailDialog" aria-label="关闭详情">关闭</button></div><pre class="detail" id="detailText"></pre><button id="copyDetail">复制完整详情</button></dialog>
-<dialog id="requestDetailDialog"><div class="head"><h2 id="requestDetailTitle">请求详情</h2><div class="row"><button id="copyRequestDetail">复制全部</button><button data-close="requestDetailDialog">关闭</button></div></div><div id="requestDetailError" class="status bad" role="status"></div><div id="requestDetailURL" class="request-url"></div><div id="requestDetailMeta" class="request-detail-meta"></div><div id="requestDetailBody" class="request-columns"><section class="request-pane"><div class="head"><h3>请求</h3><button class="mini" id="copyRequest">复制请求</button></div><details open><summary>请求头</summary><pre id="requestHeaders"></pre></details><h4>请求体</h4><div id="requestBodyNote" class="hint"></div><pre id="requestBody"></pre></section><section class="request-pane"><div class="head"><h3>响应</h3><button class="mini" id="copyResponse">复制响应</button></div><details open><summary>响应头</summary><pre id="responseHeaders"></pre></details><h4>响应体</h4><div id="responseBodyNote" class="hint"></div><pre id="responseBody"></pre></section></div><div class="hint">保留最近 100 个已解密请求，每侧正文预览最多 64 KB，二进制仅显示大小。Authorization、Cookie 等敏感头已脱敏；正文按原内容预览。详情打开时跟随采集更新，选中文本时暂停更新正文。</div></dialog>
+<dialog id="requestDetailDialog"><div class="head"><h2 id="requestDetailTitle">请求详情</h2><div class="row"><button id="copyRequestDetail">复制全部</button><button data-close="requestDetailDialog">关闭</button></div></div><div id="requestDetailError" class="status bad" role="status"></div><div id="requestDetailURL" class="request-url"></div><div id="requestDetailMeta" class="request-detail-meta"></div><div id="requestCaptureGuide" class="request-guide" hidden><p id="requestCaptureNote"></p><div class="row"><button id="requestEnableHTTPS">开启此域名解密</button><button id="requestCASettings">CA 证书 / 接入</button></div></div><div id="requestDetailBody" class="request-columns"><section class="request-pane"><div class="head"><h3>请求</h3><button class="mini" id="copyRequest">复制请求</button></div><details open><summary>请求头</summary><pre id="requestHeaders"></pre></details><h4>请求体</h4><div id="requestBodyNote" class="hint"></div><pre id="requestBody"></pre></section><section class="request-pane"><div class="head"><h3>响应</h3><button class="mini" id="copyResponse">复制响应</button></div><details open><summary>响应头</summary><pre id="responseHeaders"></pre></details><h4>响应体</h4><div id="responseBodyNote" class="hint"></div><pre id="responseBody"></pre></section></div><div class="hint">已捕获的详情保留最近 100 个请求，每侧正文预览最多 64 KB，二进制仅显示大小。Authorization、Cookie 等敏感头已脱敏；正文按原内容预览。详情打开时跟随采集更新，选中文本时暂停更新正文。</div></dialog>
 <dialog id="copyDialog" class="copy-fallback"><div class="head"><h2>手动复制</h2><button data-close="copyDialog">关闭</button></div><p class="hint">浏览器未允许自动复制，内容已选中，请按 Ctrl+C / ⌘C。</p><textarea id="copyText" readonly aria-label="待复制内容"></textarea></dialog>
 <dialog id="actionDialog"><form method="dialog"><h2 id="actionTitle">确认操作</h2><p id="actionMessage" style="white-space:pre-wrap;overflow-wrap:anywhere"></p><label id="actionName" hidden>方案名称<input id="actionInput" maxlength="80" autocomplete="off"></label><div class="row toolbar" style="justify-content:flex-end"><button id="actionCancel" type="button">取消</button><button class="primary" value="ok">确认</button></div></form></dialog>
 <script>
@@ -233,7 +233,7 @@ $('addHTTPS').onclick=async()=>{if(await addHTTPSDomain($('httpsAddDomain').valu
 $('httpsAddDomain').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('addHTTPS').onclick()}});
 $('eventCASettings').onclick=()=>$('settingsDialog').showModal();
 
-let requestDetailID=0,requestDetailEpoch=0,requestDetailBusy=false,requestDetailData=null;
+let requestDetailID=0,requestDetailEpoch=0,requestDetailBusy=false,requestDetailData=null,requestDetailEvent=null;
 function setText(id,value){if($(id).textContent!==value)$(id).textContent=value}
 function headerText(headers){return Object.entries(headers||{}).sort(([a],[b])=>a.localeCompare(b)).map(([key,values])=>values.map(value=>key+': '+value).join('\n')).join('\n')||'（无）'}
 function bodyText(body){
@@ -243,26 +243,44 @@ function bodyText(body){
 function messageNote(m){return [`转发 ${fmtB(m.bytes)}`,m.complete?'正文已读完':'正文尚未读完',m.truncated?'预览已截断（最多 64 KB）':'',m.note].filter(Boolean).join(' · ')}
 function inspectionText(d,side){const m=d[side];return `${side==='request'?d.method+' '+d.url:'HTTP '+(d.status_code||'未收到响应')+' '+(d.protocol||'')}\n${headerText(m.headers)}\n\n${bodyText(m.body)}\n\n${messageNote(m)}`}
 function renderRequestDetail(d){
- requestDetailData=d;$('copyRequestDetail').disabled=$('copyRequest').disabled=false;$('copyResponse').disabled=!d.status_code;
+ requestDetailData=d;$('requestCaptureGuide').hidden=true;$('copyRequestDetail').disabled=$('copyRequest').disabled=false;$('copyResponse').disabled=!d.status_code;
  setText('requestDetailTitle',d.method+' · '+eventLabel(d)+(d.status_code?' · HTTP '+d.status_code:''));setText('requestDetailURL',d.url);
  setText('requestDetailMeta',`${d.device} · ${d.serial} · ${d.app||'未识别 App'} · ${fmtMs(d.status==='active'?Date.now()-d.started:d.duration_ms)}${d.detail?' · '+d.detail:''}`);
  if(hasSelection('requestDetailBody'))return;
  for(const side of ['request','response']){setText(side+'Headers',headerText(d[side].headers));setText(side+'Body',bodyText(d[side].body));setText(side+'BodyNote',side==='response'&&!d.status_code?'尚未收到上游响应':messageNote(d[side]))}
 }
+function renderUncapturedDetail(e,error=''){
+ requestDetailData=null;$('copyRequestDetail').disabled=$('copyRequest').disabled=$('copyResponse').disabled=true;
+ setText('requestDetailTitle','请求 / 响应 · '+eventLabel(e));setText('requestDetailURL',eventAddress(e.text)||e.host||'');
+ const time=/^[0-9:]+/.exec(e.text)?.[0]||'';
+ setText('requestDetailMeta',[time,devName(e.serial)||e.serial,e.app,e.detail].filter(Boolean).join(' · '));
+ const tls=e.scope==='tunnel'||eventAddress(e.text).startsWith('https://');
+ const reason=error?'此请求的正文详情暂不可用：'+error:e.scope==='log'?'这是一条 App 日志，只记录了请求地址，没有请求头、正文或响应数据。':e.scope==='tunnel'?'这是一条 HTTPS 隧道记录，未解密时只能看到连接域名，无法查看接口正文。':'此请求未采集请求头、正文或响应数据。';
+ const next=tls?(httpsCovers(e.host||'')?'此域名已开启解密。请确认调试包信任固定 CA，重新发起请求，再点击新的“HTTPS 已解密”事件查看正文。':'可开启下方实际域名的解密，确认调试包信任固定 CA 后重新发起请求。解密域名需与请求域名一致。'):'请查看代理采集的请求；历史 App 日志无法补回请求和响应正文。';
+ setText('requestCaptureNote',reason+'\n'+next);$('requestCaptureGuide').hidden=false;
+ $('requestEnableHTTPS').hidden=!tls||!e.host||httpsCovers(e.host);$('requestEnableHTTPS').disabled=httpsSaving||!state?.https;
+ setText('requestEnableHTTPS','开启 '+(e.host||'此域名')+' 解密');$('requestCASettings').hidden=!tls;
+ for(const side of ['request','response']){setText(side+'Headers','未采集');setText(side+'Body','未采集');setText(side+'BodyNote',side==='request'?'仅有事件中已记录的信息':'未采集响应，无法判断响应状态或内容')}
+}
+$('requestEnableHTTPS').onclick=async()=>{
+ const e=requestDetailEvent,epoch=requestDetailEpoch;if(!e?.host)return;
+ $('requestEnableHTTPS').disabled=true;try{if(await addHTTPSDomain(e.host)&&epoch===requestDetailEpoch)renderUncapturedDetail(e)}finally{if(epoch===requestDetailEpoch)$('requestEnableHTTPS').disabled=httpsSaving||!state?.https}
+};
+$('requestCASettings').onclick=()=>{$('requestDetailDialog').close();$('settingsDialog').showModal()};
 async function refreshRequestDetail(){
- if(!requestDetailID||requestDetailBusy||stopped)return;
+ if(!requestDetailID||requestDetailBusy||stopped||requestDetailEvent&&!requestDetailEvent.decrypted)return;
  requestDetailBusy=true;const epoch=requestDetailEpoch,id=requestDetailID;
  try{const data=await request('/api/requests/'+id);if(epoch!==requestDetailEpoch)return;setText('requestDetailError','');renderRequestDetail(data)}
- catch(error){if(epoch===requestDetailEpoch)setText('requestDetailError',error.message)}
+ catch(error){if(epoch===requestDetailEpoch){setText('requestDetailError',error.message);if(requestDetailEvent)renderUncapturedDetail(requestDetailEvent,error.message)}}
  finally{if(epoch===requestDetailEpoch)requestDetailBusy=false}
 }
 async function openRequestDetail(id){
- requestDetailID=Number(id);requestDetailEpoch++;requestDetailBusy=false;requestDetailData=null;
+ requestDetailID=Number(id);requestDetailEpoch++;requestDetailBusy=false;requestDetailData=null;requestDetailEvent=(displayState?.event_details||[]).find(e=>e.id===requestDetailID)||null;$('requestCaptureGuide').hidden=true;
  setText('requestDetailTitle','请求详情');setText('requestDetailURL','');setText('requestDetailMeta','');setText('requestDetailError','正在加载…');
  for(const side of ['request','response'])for(const suffix of ['Headers','Body','BodyNote'])setText(side+suffix,'');
- $('copyRequestDetail').disabled=$('copyRequest').disabled=$('copyResponse').disabled=true;$('requestDetailDialog').showModal();await refreshRequestDetail();
+ $('copyRequestDetail').disabled=$('copyRequest').disabled=$('copyResponse').disabled=true;if(requestDetailEvent&&!requestDetailEvent.decrypted){setText('requestDetailError','');renderUncapturedDetail(requestDetailEvent)}$('requestDetailDialog').showModal();await refreshRequestDetail();
 }
-$('requestDetailDialog').addEventListener('close',()=>{requestDetailID=0;requestDetailEpoch++;requestDetailBusy=false;requestDetailData=null});
+$('requestDetailDialog').addEventListener('close',()=>{requestDetailID=0;requestDetailEpoch++;requestDetailBusy=false;requestDetailData=null;requestDetailEvent=null});
 $('copyRequestDetail').onclick=()=>{if(requestDetailData)copyText(inspectionText(requestDetailData,'request')+'\n\n'+inspectionText(requestDetailData,'response'))};
 $('copyRequest').onclick=()=>{if(requestDetailData)copyText(inspectionText(requestDetailData,'request'))};
 $('copyResponse').onclick=()=>{if(requestDetailData)copyText(inspectionText(requestDetailData,'response'))};
@@ -530,13 +548,13 @@ function eventContent(e){
  if(!request)return `<div class="event-text">${esc(e.text)}</div>`;
  let address=request[5];if(e.decrypted)address=address.replace(' · HTTPS 解密','');if(e.app){const suffix=' · '+e.app,index=address.lastIndexOf(suffix);if(index>=0)address=address.slice(0,index)+address.slice(index+suffix.length)}
  const cls={active:'warn',complete:'on',failed:'bad',timeout:'bad'}[e.status]||'',label=eventLabel(e);
- return `<div class="event-meta"><time>${esc(request[1])}</time>${label?`<span class="tag ${cls}">${esc(label)}</span>`:''}<span>${esc(request[3])} · ${esc(request[4])}</span>${e.decrypted?'<span class="tag on">HTTPS 已解密</span>':''}${!($('evFollow').checked&&fSerial)?`<span>${esc(request[2])}</span>`:''}${e.app&&!($('evFollow').checked&&fApp)?`<button class="link event-app" data-app="${esc(e.app==='未识别 App'?'-':e.app)}" data-serial="${esc(e.serial||'')}" title="按此 App 筛选">${esc(e.app)}</button>`:''}</div><div class="event-text">${esc(address)}</div>`;
+ return `<div class="event-meta"><time>${esc(request[1])}</time>${label?`<span class="tag ${cls}">${esc(label)}</span>`:''}<span>${esc(request[3])} · ${esc(request[4])}</span>${e.decrypted?'<span class="tag on">HTTPS 已解密</span>':''}${!($('evFollow').checked&&fSerial)?`<span>${esc(request[2])}</span>`:''}${e.app&&!($('evFollow').checked&&fApp)?`<button class="link event-app" data-app="${esc(e.app==='未识别 App'?'-':e.app)}" data-serial="${esc(e.serial||'')}" title="按此 App 筛选">${esc(e.app)}</button>`:''}</div>${e.id?`<button class="event-open" data-request-detail="${e.id}" title="查看请求 / 响应详情">${esc(address)}</button>`:`<div class="event-text">${esc(address)}</div>`}`;
 }
 function renderEvents(){
  if(hasSelection('events'))return;
  const rows=filteredEvents(),scope=$('evFollow').checked&&(fSerial||fApp||fHost)?' · 跟随观测范围':'';$('evCount').textContent=`显示 ${rows.length} / ${displayState.events.length} 条 · 最新在前${scope}${paused?' · 已暂停刷新':''}`;
  $('evAdvancedCount').textContent=[$('evType').value,$('evSource').value].filter(Boolean).length?' · 已筛选':'';
- html('events',rows.map(e=>{const address=eventAddress(e.text);return `<article class="event"><div>${eventContent(e)}${e.detail?`<div class="hint">${esc(e.detail)}</div>`:''}</div><div class="event-actions">${e.decrypted?`<button class="mini" data-request-detail="${e.id}">请求 / 响应</button>`:''}${e.host?listActions(e.host)+httpsAction(e.host):''}${address?copyButton(address,'复制地址'):''}${copyButton(eventText(e),'复制整条')}</div></article>`}).join('')||'<div class="empty">没有符合条件的事件</div>');
+ html('events',rows.map(e=>{const address=eventAddress(e.text);return `<article class="event"><div>${eventContent(e)}${e.detail?`<div class="hint">${esc(e.detail)}</div>`:''}</div><div class="event-actions">${e.id&&e.scope?`<button class="mini" data-request-detail="${e.id}">请求 / 响应</button>`:''}${e.host?listActions(e.host)+httpsAction(e.host):''}${address?copyButton(address,'复制地址'):''}${copyButton(eventText(e),'复制整条')}</div></article>`}).join('')||'<div class="empty">没有符合条件的事件</div>');
  $('copyEvents').disabled=$('exportEvents').disabled=!rows.length;
 }
 for(const id of ['evType','evSearch','evSource','evStatus'])$(id).addEventListener(id==='evSearch'?'input':'change',()=>{if(displayState)renderEvents()});

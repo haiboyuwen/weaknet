@@ -183,9 +183,9 @@ test('工作台域名快捷添加保存并启用解密，失败保留草稿且�
  h.setHandler(()=>({ok:false,text:async()=>JSON.stringify({error:'disk full'})}));assert.equal(await h.run("addHTTPSDomain('new.example')"),false);
  assert.match(h.element('httpsDomains').value,/new.example/);assert.doesNotMatch(h.element('httpsDomainChips').innerHTML,/new.example/);assert.equal(h.run('httpsDirty'),true);
 });
-test('请求事件提供域名名单和解密操作，只有已解密事件提供请求响应详情',()=>{
+test('请求事件提供域名名单和解密操作，所有请求事件可打开详情',()=>{
  const h=setup();h.state.https={enabled:true,domains:['api.example']};h.state.event_details=[{id:1,text:'12:00:00 [phone] [HTTP][代理] GET https://api.example/a · com.example.app · HTTPS 解密 · 弱网',host:'api.example',status:'complete',scope:'http',decrypted:true},{id:2,text:'12:00:01 [phone] [HTTP][App 日志] https://other.example/a',host:'other.example',status:'unknown',scope:'log'}];h.state.events=h.state.event_details.map(e=>e.text);h.run('renderEvents()');
- assert.match(h.element('events').innerHTML,/data-request-detail="1"/);assert.doesNotMatch(h.element('events').innerHTML,/data-request-detail="2"/);assert.match(h.element('events').innerHTML,/data-list="blacklist" data-item="other.example"/);assert.match(h.element('events').innerHTML,/data-https="other.example"/);assert.match(h.element('events').innerHTML,/HTTPS 已解密/);
+ assert.match(h.element('events').innerHTML,/data-request-detail="1"/);assert.match(h.element('events').innerHTML,/data-request-detail="2"/);assert.match(h.element('events').innerHTML,/data-list="blacklist" data-item="other.example"/);assert.match(h.element('events').innerHTML,/data-https="other.example"/);assert.match(h.element('events').innerHTML,/HTTPS 已解密/);
  h.element('evType').value='decrypted';assert.equal(h.run('filteredEvents().length'),1);
 });
 test('请求详情拒绝旧响应覆盖新请求，并正确显示文本正文与脱敏头',async()=>{
@@ -194,4 +194,16 @@ test('请求详情拒绝旧响应覆盖新请求，并正确显示文本正文�
  const detail=(id,body)=>({id,method:'POST',url:'https://api.example/'+id,status:'complete',status_code:200,protocol:'HTTP/2.0',duration_ms:24,device:'phone',serial:'A',app:'com.example.app',request:{headers:{Authorization:['REDACTED']},body:'{"room":123}',bytes:12,complete:true,truncated:false},response:{headers:{'Content-Type':['application/json']},body,bytes:20,complete:true,truncated:false}});
  pending[1](h.response(detail(2,'{"ok":true}')));await second;pending[0](h.response(detail(1,'old data')));await first;
  assert.equal(h.element('requestDetailURL').textContent,'https://api.example/2');assert.match(h.element('responseBody').textContent,/"ok": true/);assert.equal(h.element('requestHeaders').textContent,'Authorization: REDACTED');assert.match(h.run("inspectionText(requestDetailData,'response')"),/HTTP 200 HTTP\/2.0/);assert.doesNotMatch(h.element('responseBody').textContent,/old data/);
+});
+
+test('点击 App 日志显示未采集信息和实际域名入口，不伪造请求响应或请求接口',async()=>{
+ const h=setup();h.state.https={enabled:true,domains:['fat-api.example.com']};h.state.event_details=[{id:7,text:'09:41:20 [phone] [HTTP][App 日志] https://fat-api.example.live/track · com.example.app',host:'fat-api.example.live',app:'com.example.app',serial:'A',scope:'log',status:'unknown'}];h.state.events=h.state.event_details.map(e=>e.text);
+ h.run('renderEvents()');assert.match(h.element('events').innerHTML,/class="event-open" data-request-detail="7"/);
+ await h.run('openRequestDetail(7)');assert.equal(h.calls.length,0);assert.match(h.element('requestCaptureNote').textContent,/App 日志/);assert.match(h.element('requestEnableHTTPS').textContent,/fat-api.example.live/);assert.equal(h.element('requestEnableHTTPS').hidden,false);assert.equal(h.element('responseBody').textContent,'未采集');assert.equal(h.element('copyResponse').disabled,true);
+ h.state.https.domains=['example.live'];h.run('renderUncapturedDetail(requestDetailEvent)');assert.equal(h.element('requestEnableHTTPS').hidden,true);assert.match(h.element('requestCaptureNote').textContent,/重新发起请求/);
+});
+test('隧道详情保持连接状态，过期解密详情明确不可用，不遗留前一请求正文',async()=>{
+ const h=setup();h.state.event_details=[{id:8,text:'09:00:00 [phone] [HTTPS 隧道][代理] CONNECT api.example:443',host:'api.example',scope:'tunnel',status:'active'},{id:9,text:'09:01:00 [phone] [HTTP][代理] GET https://api.example/test',host:'api.example',scope:'http',status:'complete',decrypted:true}];
+ await h.run('openRequestDetail(8)');assert.match(h.element('requestDetailTitle').textContent,/连接中/);assert.match(h.element('requestCaptureNote').textContent,/隧道/);
+ h.setHandler(()=>({ok:false,text:async()=>'详情已过期'}));h.element('responseBody').textContent='old sensitive body';await h.run('openRequestDetail(9)');assert.equal(h.element('responseBody').textContent,'未采集');assert.match(h.element('requestCaptureNote').textContent,/已过期/);
 });
