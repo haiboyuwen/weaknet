@@ -43,13 +43,19 @@ func TestResponseEventLifecycle(t *testing.T) {
 			app := newTestApp(t, "unlimited")
 			lane := newLane(app, "test", "phone", 0)
 			id := lane.proxyRequestEvent("", tc.method, "http://example.com/file", false)
-			waitEventStatus(t, app, id, "active")
+			started := waitEventStatus(t, app, id, "active")
+			if started.Started <= 0 || started.Ended != 0 || started.RecordedAt <= 0 {
+				t.Fatalf("invalid active timing: %+v", started)
+			}
 			o := newResponseObserver(app, id, tc.method)
 			for _, b := range []byte(tc.response) {
 				o.feed([]byte{b})
 			}
 			o.close()
-			waitEventStatus(t, app, id, tc.status)
+			ended := waitEventStatus(t, app, id, tc.status)
+			if ended.Started != started.Started || ended.Ended < ended.Started || ended.DurationMS != ended.Ended-ended.Started {
+				t.Fatalf("invalid completed timing: %+v", ended)
+			}
 			if len(app.state("").Events) != 1 || app.state("").EventSeq != 1 {
 				t.Fatal("生命周期更新不应创建重复事件")
 			}
@@ -62,11 +68,15 @@ func TestRequestTimeoutUnknownAndEviction(t *testing.T) {
 	lane := newLane(app, "test", "phone", 0)
 	id := lane.proxyRequestEvent("", "GET", "http://example.com", false)
 	app.failEvent(id, os.ErrDeadlineExceeded)
-	waitEventStatus(t, app, id, "timeout")
+	timedOut := waitEventStatus(t, app, id, "timeout")
 	app.finishEvent(id, "complete", "late update")
-	waitEventStatus(t, app, id, "timeout")
+	if late := waitEventStatus(t, app, id, "timeout"); late.Ended != timedOut.Ended || late.DurationMS != timedOut.DurationMS {
+		t.Fatal("late update changed terminal timing")
+	}
 	logID := lane.requestEvent("App 日志", "com.example", "GET", "https://example.com", "")
-	waitEventStatus(t, app, logID, "unknown")
+	if logged := waitEventStatus(t, app, logID, "unknown"); logged.RecordedAt <= 0 || logged.Started != 0 || logged.Ended != 0 || logged.DurationMS != 0 {
+		t.Fatal("App log must not claim request or response timing")
+	}
 	for i := 0; i < 301; i++ {
 		app.event("tool event")
 	}

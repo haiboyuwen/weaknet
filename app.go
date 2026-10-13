@@ -92,7 +92,12 @@ func (a *App) addEvent(msg, status, scope string) uint64 {
 
 func (a *App) recordEvent(event EventView) uint64 {
 	msg := event.Text
-	line := time.Now().Format("15:04:05") + " " + msg
+	now := time.Now()
+	line := now.Format("15:04:05") + " " + msg
+	event.RecordedAt = now.UnixMilli()
+	if event.Started == 0 && event.Status == "active" && (event.Scope == "http" || event.Scope == "tunnel") {
+		event.Started = event.RecordedAt
+	}
 	a.evMu.Lock()
 	a.eventSeq++
 	id := a.eventSeq
@@ -550,6 +555,13 @@ func (a *App) state(appFilter string) State {
 	st.EventSeq = a.eventSeq
 	st.EventDetails = append([]EventView{}, a.eventDetails...)
 	a.evMu.Unlock()
+	now := time.Now().UnixMilli()
+	for i := range st.EventDetails {
+		e := &st.EventDetails[i]
+		if e.Status == "active" && e.Started > 0 {
+			e.DurationMS = max(int64(0), now-e.Started)
+		}
+	}
 	return st
 }
 

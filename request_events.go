@@ -11,18 +11,23 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 )
 
 type EventView struct {
-	Decrypted bool   `json:"decrypted,omitempty"`
-	ID        uint64 `json:"id"`
-	Text      string `json:"text"`
-	Status    string `json:"status,omitempty"` // active | complete | failed | timeout | unknown
-	Scope     string `json:"scope,omitempty"`  // http | tunnel | log
-	Detail    string `json:"detail,omitempty"`
-	Serial    string `json:"serial,omitempty"`
-	App       string `json:"app,omitempty"`
-	Host      string `json:"host,omitempty"`
+	RecordedAt int64  `json:"recorded_at"`
+	Started    int64  `json:"started,omitempty"`
+	Ended      int64  `json:"ended,omitempty"`
+	DurationMS int64  `json:"duration_ms,omitempty"`
+	Decrypted  bool   `json:"decrypted,omitempty"`
+	ID         uint64 `json:"id"`
+	Text       string `json:"text"`
+	Status     string `json:"status,omitempty"` // active | complete | failed | timeout | unknown
+	Scope      string `json:"scope,omitempty"`  // http | tunnel | log
+	Detail     string `json:"detail,omitempty"`
+	Serial     string `json:"serial,omitempty"`
+	App        string `json:"app,omitempty"`
+	Host       string `json:"host,omitempty"`
 }
 
 // 更新原事件，不增加日志条数；已经离开最近 300 条的事件不再保留。
@@ -33,6 +38,10 @@ func (a *App) finishEvent(id uint64, status, detail string) {
 		e := &a.eventDetails[i]
 		if e.ID == id && e.Status == "active" {
 			e.Status, e.Detail = status, detail
+			e.Ended = max(e.Started, time.Now().UnixMilli())
+			if e.Started > 0 {
+				e.DurationMS = e.Ended - e.Started
+			}
 			return
 		}
 	}

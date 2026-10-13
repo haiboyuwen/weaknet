@@ -37,6 +37,7 @@ type RequestInspection struct {
 	Device     string         `json:"device"`
 	App        string         `json:"app"`
 	Started    int64          `json:"started"`
+	Ended      int64          `json:"ended,omitempty"`
 	DurationMS int64          `json:"duration_ms"`
 	Status     string         `json:"status"`
 	Detail     string         `json:"detail,omitempty"`
@@ -143,7 +144,8 @@ func (s *inspectionStore) finish(id uint64, status, detail string) {
 	defer s.mu.Unlock()
 	if e := s.entries[id]; e != nil {
 		e.view.Status, e.view.Detail = status, detail
-		e.view.DurationMS = time.Since(time.UnixMilli(e.view.Started)).Milliseconds()
+		e.view.Ended = max(e.view.Started, time.Now().UnixMilli())
+		e.view.DurationMS = e.view.Ended - e.view.Started
 		e.view.Version++
 	}
 }
@@ -246,10 +248,16 @@ func (a *App) inspectionRoutes(mux *http.ServeMux) {
 			if e.ID == id {
 				view.Status = e.Status
 				view.Detail = e.Detail
+				if e.Started > 0 {
+					view.Started, view.Ended, view.DurationMS = e.Started, e.Ended, e.DurationMS
+				}
 				break
 			}
 		}
 		a.evMu.Unlock()
+		if view.Status == "active" && view.Started > 0 {
+			view.DurationMS = max(int64(0), time.Now().UnixMilli()-view.Started)
+		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		json.NewEncoder(w).Encode(view)

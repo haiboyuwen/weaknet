@@ -80,8 +80,11 @@ func TestInspectionRequestResponseAndGzip(t *testing.T) {
 	if string(original) != response || resp.Header.Get("Set-Cookie") != "new_session=original-response-secret" {
 		t.Fatal("response changed")
 	}
-	waitEventStatus(t, app, 1, "complete")
+	event := waitEventStatus(t, app, 1, "complete")
 	d := inspectionAPI(t, app, 1)
+	if d.Started != event.Started || d.Ended != event.Ended || d.DurationMS != event.DurationMS {
+		t.Fatal("request details and event timing must agree")
+	}
 	if d.Method != "POST" || d.StatusCode != 200 || d.Request.Body != payload || d.Response.Body != response || d.Status != "complete" {
 		t.Fatalf("incorrect capture %+v", d)
 	}
