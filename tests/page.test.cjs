@@ -177,12 +177,12 @@ test('日志包名下拉展开时轮询不重建候选，键盘确认后保留�
 
 test('请求始终按观测范围筛选，取消实时跟随后仍能切换范围并复制内容',async()=>{
  const h=setup();const row={text:'12:00:00 [Same model] [HTTP][代理] GET http://api.example.com/a · com.example.app · 弱网',serial:'A',app:'com.example.app',host:'api.example.com',status:'active',scope:'http'};
- h.state.event_details=[row,{...row,serial:'B'},{...row,app:'com.other.app'},{...row,host:'cdn.example.com'},{text:'12:00:00 tool event'}];h.state.events=h.state.event_details.map(e=>e.text);
- h.run("fSerial='A';fApp='com.example.app';fHost='api.';renderEvents()");assert.equal(h.run('filteredEvents().length'),1);
+ h.state.event_details=[row,{...row,serial:'B'},{...row,app:'com.other.app'},{text:'12:00:00 tool event'}];h.state.events=h.state.event_details.map(e=>e.text);
+ h.run("fSerial='A';fApp='com.example.app';renderEvents()");assert.equal(h.run('filteredEvents().length'),1);
  assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/com.example.app/);assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/Same model/);
  const menu=h.run('eventMenuContent(filteredEvents()[0])');assert.match(menu,/data-copy=/);assert.match(menu,/com.example.app/);assert.match(menu,/请求中/);
  h.element('evFollow').checked=false;h.run("$('evFollow').onchange()");assert.equal(h.run('filteredEvents().length'),1);assert.match(h.run('eventContent(filteredEvents()[0])'),/data-app="com.example.app"/);assert.match(h.run('eventContent(filteredEvents()[0])'),/Same model/);
- h.run("fSerial='';fApp='';fHost='';renderEvents()");assert.equal(h.run('filteredEvents().length'),4);
+ h.run("fSerial='';fApp='';renderEvents()");assert.equal(h.run('filteredEvents().length'),3);
 });
 
 test('HTTPS 轮询保留域名草稿，保存失败也不丢失，成功使用返回设置',async()=>{
@@ -423,4 +423,14 @@ test('解密域名输入框一次添加多个域名，去重并沿用已有名�
  assert.equal(h.element('httpsDraftActions').hidden,true);
  h.setHandler(()=>({ok:false,text:async()=>JSON.stringify({error:'disk full'})}));assert.equal(await h.run("addHTTPSDomain('new.example')"),false);
  assert.equal(h.element('httpsDraftActions').hidden,false);
+});
+
+test('工具事件弹窗只列出工具和系统事件，可搜索、复制并标出失败',async()=>{
+ const h=setup();
+ h.state.event_details=[{id:4,text:'12:00:03 [SM G991U] 清空 com.example.app 失败：denied'},{id:3,text:'12:00:02 [HTTP][代理] GET http://api.example.com/a',scope:'http',status:'complete'},{id:2,text:'12:00:01 [SM G991U] [App 日志] https://api.example.com/b',scope:'log'},{id:1,text:'12:00:00 [SM G991U] 已启用弱网，代理 127.0.0.1:8899'}];
+ h.run("$('toolEventsOpen').onclick()");
+ assert.equal(h.run('toolEvents().length'),2);assert.equal(h.element('toolEventsCount').textContent,'共 2 条');
+ const list=h.element('toolEventsList').innerHTML;assert.match(list,/<time>12:00:03<\/time><span class="bad">\[SM G991U\] 清空 com.example.app 失败/);assert.match(list,/<time>12:00:00<\/time><span>\[SM G991U\] 已启用弱网/);assert.doesNotMatch(list,/api\.example\.com/);
+ h.element('toolEventsSearch').value='弱网';h.run("$('toolEventsSearch').oninput()");assert.equal(h.element('toolEventsCount').textContent,'显示 1 / 2 条');
+ let copied='';h.run('navigator.clipboard').writeText=async text=>{copied=text};await h.run("$('copyToolEvents').onclick()");assert.equal(copied,'12:00:00 [SM G991U] 已启用弱网，代理 127.0.0.1:8899');
 });

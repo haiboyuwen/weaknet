@@ -20,7 +20,7 @@ import (
 //go:embed web_assets/*
 var resourcePreviewAssets embed.FS
 
-const resourcePreviewTargetLimit = 1000
+const resourcePreviewTargetLimit = maxRealtimeEvents
 const resourcePreviewTextLimit = 2 << 20
 const resourcePreviewBinaryLimit = 32 << 20
 const resourcePreviewMediaLimit = 512 << 20

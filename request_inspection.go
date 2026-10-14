@@ -19,7 +19,7 @@ import (
 
 const inspectionBodyLimit = 64 << 10
 const inspectionHeaderLimit = 16 << 10
-const inspectionEntryLimit = 100
+const inspectionEntryLimit = maxRealtimeEvents
 
 type MessagePreview struct {
 	Headers   http.Header `json:"headers"`
@@ -251,7 +251,7 @@ func (a *App) inspectionRoutes(mux *http.ServeMux) {
 		}
 		view, ok := a.inspections.get(id)
 		if !ok {
-			http.Error(w, "请求详情已过期或未采集；仅保留最近 100 个已解密请求", 404)
+			http.Error(w, "请求详情已过期或未采集；仅保留最近 1 万个已解密请求", 404)
 			return
 		}
 		a.evMu.Lock()
