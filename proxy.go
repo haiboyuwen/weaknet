@@ -418,6 +418,9 @@ type Lane struct {
 	relayStdin io.WriteCloser
 	relayPort  int
 	relayOn    atomic.Bool
+	// 局域网模式：监听电脑的局域网地址，只接受 allowIP（手机）的连接
+	listenIP net.IP
+	allowIP  net.IP
 }
 
 type connPair struct {
@@ -436,7 +439,11 @@ func newLane(app *App, serial, name string, port int) *Lane {
 }
 
 func (l *Lane) start() error {
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", l.port))
+	host := "127.0.0.1"
+	if l.listenIP != nil {
+		host = l.listenIP.String()
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort(host, fmt.Sprint(l.port)))
 	if err != nil {
 		return err
 	}
@@ -449,6 +456,10 @@ func (l *Lane) start() error {
 			c, err := ln.Accept()
 			if err != nil {
 				return
+			}
+			if !l.allows(c.RemoteAddr()) {
+				c.Close()
+				continue
 			}
 			go l.handle(c)
 		}

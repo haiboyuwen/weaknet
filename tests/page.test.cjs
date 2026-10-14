@@ -49,13 +49,14 @@ test('暂停期间显示保持不变，恢复后更新',async()=>{
  assert.equal(h.run('displayState.events.length'),0);assert.match(h.element('pauseInfo').textContent,/新增 4 条/);
  h.run("$('pause').onclick()");assert.equal(h.run('displayState.events[0]'),'new event');
 });
-test('SSE 自动更新列表，与实时跟随独立；暂停只冻结显示，后台继续接收',()=>{
+test('SSE 持续接收数据；关闭实时跟随或暂停列表只冻结显示，新请求仅作提示',()=>{
  const h=setup();h.run("view='monitor';$('evFollow').checked=false;connectStateStream()");const stream=h.streams[0];
  const row={id:1,scope:'http',status:'active',text:'12:00:00 first'};
  stream.emit('state',{...h.state,revision:1,event_details:[row]});assert.equal(h.run('eventMenuRows[0].id'),1);
- stream.emit('state',{...h.state,revision:2,event_details:[{...row,id:2},row]});assert.equal(h.run('eventMenuRows.length'),2);assert.equal(h.calls.length,0);
- h.run("$('pauseRequests').onclick()");stream.emit('state',{...h.state,revision:3,event_details:[{...row,id:3},row]});assert.equal(h.run('state.revision'),3);assert.equal(h.run('eventMenuRows[0].id'),2);assert.equal(stream.closed,undefined);
+ stream.emit('state',{...h.state,revision:2,event_details:[{...row,id:2},row]});assert.equal(h.run('state.revision'),2);assert.equal(h.run('eventMenuRows.length'),1);assert.equal(h.run('requestNewEvents.size'),1);assert.equal(h.calls.length,0);
+ h.run("$('pauseRequests').onclick()");stream.emit('state',{...h.state,revision:3,event_details:[{...row,id:3},row]});assert.equal(h.run('state.revision'),3);assert.equal(h.run('eventMenuRows[0].id'),1);assert.equal(stream.closed,undefined);
  h.run("$('pauseRequests').onclick()");assert.equal(h.run('eventMenuRows[0].id'),3);
+ h.run("$('evFollow').checked=true;$('evFollow').onchange()");stream.emit('state',{...h.state,revision:4,event_details:[{...row,id:4},{...row,id:3},row]});assert.equal(h.run('eventMenuRows[0].id'),4);assert.equal(h.run('eventMenuRows.length'),3);
  assert.doesNotMatch(page,/setInterval\([^\n]*(?:refresh\(\)|pollRealtime|pollDashboard)/);
 });
 test('SSE 保留请求数据处理流量快照，忽略旧版本，切换 App 关闭旧连接，重连允许服务重启',()=>{
@@ -399,4 +400,18 @@ test('实时列表分批渲染，避免一次渲染上万行',()=>{
  h.run('renderEvents()');assert.equal(h.run('eventMenuRows.length'),1200);assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,500);
  assert.match(h.element('events').innerHTML,/还有 700 条未渲染/);assert.match(h.element('events').innerHTML,/<td[^>]*>\s*<\/td>|1200/);
  h.run('requestRenderLimit+=requestRenderStep;renderEvents()');assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,1000);
+});
+test('点击 SSL 列的「加密」可添加该域名并开启解密，已在解密列表的域名不再可点',async()=>{
+ const h=setup();h.state.https={enabled:false,domains:[]};
+ assert.match(h.run("sslUnlock({host:'api.example.com'})"),/data-https="api.example.com"/);
+ h.state.https={enabled:true,domains:['example.com']};
+ assert.equal(h.run("sslUnlock({host:'api.example.com'})"),'加密');
+ assert.equal(h.run("sslUnlock({})"),'加密');
+});
+test('设备操作提供 USB 与局域网两种启用方式，局域网设备显示代理地址',()=>{
+ const h=setup();h.state.devices=[{serial:'A',model:'phone A',state:'device',enabled:false}];
+ h.run("toolSerials=new Set(['A']);toolSelectionReady=true;renderClear()");
+ const actions=h.element('toolDeviceActions').innerHTML;assert.match(actions,/data-tool-action="on"/);assert.match(actions,/data-tool-action="on-lan"/);
+ h.state.adb=true;h.state.devices=[{serial:'A',model:'phone A',state:'device',enabled:true,port:8888,lan:'192.168.1.2:8888'}];
+ h.run('renderDevices()');assert.match(h.element('devices').innerHTML,/局域网 192\.168\.1\.2:8888/);
 });

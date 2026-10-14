@@ -68,6 +68,7 @@ type dnsEntry struct {
 type resumeState struct {
 	seenAt  time.Time // 重新连接上的时间，零值表示还没连上
 	nextTry time.Time
+	mode    string // 断开前的连接方式，恢复时沿用
 }
 
 const (
@@ -235,7 +236,7 @@ func (a *App) refreshDevices() {
 		if _, ok := found[serial]; !ok {
 			delete(a.lanes, serial)
 			lane.stop()
-			a.resume[serial] = &resumeState{}
+			a.resume[serial] = &resumeState{mode: lane.mode()}
 			go a.event(fmt.Sprintf("[%s] 手机已断开 USB，暂停弱网通道，重新连接后自动恢复", lane.name))
 		}
 	}
@@ -272,7 +273,13 @@ func (a *App) dueResumes(found map[string]DeviceInfo) []string {
 // tryResume 重新启用弱网；刚重新连接时 adb 可能还不可用，失败后由 refreshDevices 按间隔重试，
 // 超过 resumeGiveUp 仍失败则清除手机代理
 func (a *App) tryResume(serial string) {
-	a.enable(serial)
+	a.mu.Lock()
+	mode := modeUSB
+	if st := a.resume[serial]; st != nil && st.mode != "" {
+		mode = st.mode
+	}
+	a.mu.Unlock()
+	a.enableMode(serial, mode)
 	a.mu.Lock()
 	_, enabled := a.lanes[serial]
 	st := a.resume[serial]
@@ -318,7 +325,57 @@ func (a *App) nextPort() int {
 	return p
 }
 
-func (a *App) enable(serial string) {
+func (a *App) enable(serial string) { a.switchMode(serial, modeUSB) }
+
+func (a *App) enableLAN(serial string) { a.switchMode(serial, modeLAN) }
+
+// switchMode 是用户点「启用弱网」的入口：同一模式已启用则不处理；已按另一种模式启用时，
+// 先关闭原通道（清除旧代理、adb reverse 和手机端中转程序）再切换；同时取消断开后等待的自动恢复，
+// 避免之后又按旧模式恢复。切到局域网前先确认手机和电脑同网段，失败时保持原状。
+func (a *App) switchMode(serial, mode string) {
+	a.mu.Lock()
+	lane := a.lanes[serial]
+	_, hadResume := a.resume[serial]
+	delete(a.resume, serial)
+	a.mu.Unlock()
+	if lane != nil && lane.mode() == mode {
+		return
+	}
+	if lane != nil {
+		if mode == modeLAN {
+			if _, _, err := a.lanTarget(serial); err != nil {
+				a.event(fmt.Sprintf("[%s] 局域网模式启用失败：%v（保持 USB 模式）", lane.name, err))
+				return
+			}
+		}
+		a.disable(serial)
+		a.event(fmt.Sprintf("[%s] 已清除原有代理，切换到%s", lane.name, map[string]string{modeUSB: "USB 模式", modeLAN: "局域网模式"}[mode]))
+	}
+	a.enableMode(serial, mode)
+	if hadResume {
+		// 断线前的代理还留在手机上；新模式没起来的话，清掉它，免得手机一直断网。
+		a.mu.Lock()
+		_, enabled := a.lanes[serial]
+		a.mu.Unlock()
+		if !enabled {
+			a.runAdb(serial, "shell", "settings", "put", "global", "http_proxy", ":0")
+			a.runAdb(serial, "shell", "settings", "delete", "global", "http_proxy")
+			a.event(fmt.Sprintf("[%s] 已清除断线前遗留的手机代理", serial))
+		}
+	}
+}
+
+// enableMode 启用弱网。USB 模式经 adb reverse（可选手机端中转程序按 App 分类）；
+// 局域网模式把手机系统代理指向电脑的局域网地址，无法按 App 分类。
+func (a *App) enableMode(serial, mode string) {
+	var phoneIP, localIP net.IP
+	if mode == modeLAN {
+		var err error
+		if phoneIP, localIP, err = a.lanTarget(serial); err != nil {
+			a.event(fmt.Sprintf("[%s] 局域网模式启用失败：%v", serial, err))
+			return
+		}
+	}
 	a.mu.Lock()
 	if _, ok := a.lanes[serial]; ok {
 		a.mu.Unlock()
@@ -331,6 +388,7 @@ func (a *App) enable(serial string) {
 		return
 	}
 	lane := newLane(a, serial, d.Model, a.nextPort())
+	lane.listenIP, lane.allowIP = localIP, phoneIP
 	if err := lane.start(); err != nil {
 		a.mu.Unlock()
 		a.event(fmt.Sprintf("[%s] 端口 %d 启动失败：%v", d.Model, lane.port, err))
@@ -340,21 +398,27 @@ func (a *App) enable(serial string) {
 	a.mu.Unlock()
 
 	port := fmt.Sprint(lane.port)
-	a.runAdb(serial, "reverse", "--remove", "tcp:"+port) // 清理残留，避免占用中转程序要监听的端口
-	// 优先用手机端中转程序（可按 App 分类），失败时退回直连
-	mode := "按 App 分类"
+	proxyAddr := "127.0.0.1:" + port
+	label := "按 App 分类"
 	var out1 string
 	var err1 error
-	if relayAvailable() {
-		if err := a.startRelay(serial, lane); err != nil {
-			a.event(fmt.Sprintf("[%s] %v，退回直连模式（无法按 App 分类）", d.Model, err))
+	if mode == modeLAN {
+		proxyAddr = net.JoinHostPort(localIP.String(), port)
+		label = "局域网模式（无法按 App 分类）"
+	} else {
+		a.runAdb(serial, "reverse", "--remove", "tcp:"+port) // 清理残留，避免占用中转程序要监听的端口
+		// 优先用手机端中转程序（可按 App 分类），失败时退回直连
+		if relayAvailable() {
+			if err := a.startRelay(serial, lane); err != nil {
+				a.event(fmt.Sprintf("[%s] %v，退回直连模式（无法按 App 分类）", d.Model, err))
+			}
+		}
+		if lane.relayCmd == nil {
+			label = "直连模式"
+			out1, err1 = a.runAdb(serial, "reverse", "tcp:"+port, "tcp:"+port)
 		}
 	}
-	if lane.relayCmd == nil {
-		mode = "直连模式"
-		out1, err1 = a.runAdb(serial, "reverse", "tcp:"+port, "tcp:"+port)
-	}
-	out2, err2 := a.runAdb(serial, "shell", "settings", "put", "global", "http_proxy", "127.0.0.1:"+port)
+	out2, err2 := a.runAdb(serial, "shell", "settings", "put", "global", "http_proxy", proxyAddr)
 	if err1 != nil || err2 != nil {
 		a.mu.Lock()
 		delete(a.lanes, serial)
@@ -364,7 +428,7 @@ func (a *App) enable(serial string) {
 		a.event(fmt.Sprintf("[%s] 启用失败：%s %s", d.Model, out1, out2))
 		return
 	}
-	a.event(fmt.Sprintf("[%s] 已启用弱网，端口 %s，%s", d.Model, port, mode))
+	a.event(fmt.Sprintf("[%s] 已启用弱网，代理 %s，%s", d.Model, proxyAddr, label))
 	go lane.watchRequestLogs()
 }
 
@@ -382,7 +446,9 @@ func (a *App) disable(serial string) {
 	a.runAdb(serial, "shell", "settings", "delete", "global", "http_proxy")
 	if lane != nil {
 		a.stopRelay(serial, lane)
-		a.runAdb(serial, "reverse", "--remove", fmt.Sprintf("tcp:%d", lane.port))
+		if lane.mode() == modeUSB {
+			a.runAdb(serial, "reverse", "--remove", fmt.Sprintf("tcp:%d", lane.port))
+		}
 		lane.stop()
 	}
 	a.event(fmt.Sprintf("[%s] 已关闭弱网，系统代理已清除", name))
@@ -404,7 +470,7 @@ func (a *App) reconnect(serial string) {
 }
 
 func (a *App) deviceAction(serial, action string) error {
-	fn := map[string]func(string){"on": a.enable, "off": a.disable, "reconnect": a.reconnect}[action]
+	fn := map[string]func(string){"on": a.enable, "on-lan": a.enableLAN, "off": a.disable, "reconnect": a.reconnect}[action]
 	if fn == nil {
 		return fmt.Errorf("不支持的设备操作：%s", action)
 	}
@@ -513,7 +579,8 @@ func (a *App) shutdown() {
 type DeviceView struct {
 	DeviceInfo
 	Enabled bool   `json:"enabled"`
-	Relay   bool   `json:"relay"` // 是否通过中转程序（可按 App 分类）
+	Relay   bool   `json:"relay"`         // 是否通过中转程序（可按 App 分类）
+	LAN     string `json:"lan,omitempty"` // 局域网模式下手机使用的代理地址
 	Port    int    `json:"port,omitempty"`
 	Busy    string `json:"busy"`
 	Foreign bool   `json:"foreign"`
@@ -564,6 +631,9 @@ func (a *App) stateSnapshot(appFilter string, withRequests bool) State {
 		v := DeviceView{DeviceInfo: d, Busy: a.busy[s]}
 		if l, ok := a.lanes[s]; ok {
 			v.Enabled, v.Port, v.Relay = true, l.port, l.relayOn.Load()
+			if l.listenIP != nil {
+				v.LAN = net.JoinHostPort(l.listenIP.String(), fmt.Sprint(l.port))
+			}
 		} else {
 			v.Foreign = d.Proxy != "" && d.Proxy != "null" && d.Proxy != ":0"
 		}
