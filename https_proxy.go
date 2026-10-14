@@ -72,7 +72,7 @@ func (l *Lane) handleHTTPS(client net.Conn, br *bufio.Reader, host, port, app st
 		err := secure.HandshakeContext(ctx)
 		cancel()
 		if err != nil {
-			event := l.app.recordEvent(EventView{Text: fmt.Sprintf("[%s] [HTTP][代理] CONNECT %s · %s · HTTPS 解密握手失败", l.name, net.JoinHostPort(host, port), app), Status: "active", Scope: "http", Serial: l.serial, App: app, Host: host})
+			event := l.app.recordEvent(EventView{Method: "CONNECT", URL: "https://" + net.JoinHostPort(host, port), Text: fmt.Sprintf("[%s] [HTTP][代理] CONNECT %s · %s · HTTPS 解密握手失败", l.name, net.JoinHostPort(host, port), app), Status: "active", Scope: "http", Serial: l.serial, Device: l.name, App: app, Host: host, Shaped: shaped})
 			l.app.failEvent(event, fmt.Errorf("%w；请确认调试包信任固定 CA，且未启用自定义证书固定", err))
 			failure(err)
 			return

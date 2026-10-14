@@ -17,6 +17,8 @@ func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
 	a.httpsRoutes(mux)
 	a.inspectionRoutes(mux)
+	a.requestHistoryRoutes(mux)
+	a.resourcePreviewRoutes(mux)
 	writeJSON := func(w http.ResponseWriter, v any) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
@@ -29,6 +31,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, a.state(r.URL.Query().Get("app")))
 	})
+	mux.HandleFunc("GET /api/state/stream", a.stateStream)
 	mux.HandleFunc("POST /api/config", func(w http.ResponseWriter, r *http.Request) {
 		data := map[string]any{}
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {

@@ -77,12 +77,12 @@ func TestRequestTimeoutUnknownAndEviction(t *testing.T) {
 	if logged := waitEventStatus(t, app, logID, "unknown"); logged.RecordedAt <= 0 || logged.Started != 0 || logged.Ended != 0 || logged.DurationMS != 0 {
 		t.Fatal("App log must not claim request or response timing")
 	}
-	for i := 0; i < 301; i++ {
+	for i := 0; i < maxRealtimeEvents+1; i++ {
 		app.event("tool event")
 	}
 	app.finishEvent(id, "failed", "evicted")
 	st := app.state("")
-	if len(st.EventDetails) != 300 || len(st.Events) != 300 {
+	if len(st.EventDetails) != maxRealtimeEvents || len(st.Events) != maxRealtimeEvents {
 		t.Fatal("事件列表必须有界")
 	}
 	st.EventDetails[0].Text = "mutated"

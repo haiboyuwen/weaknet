@@ -59,9 +59,16 @@ type inspectionEntry struct {
 	request, response capturedMessage
 }
 type inspectionStore struct {
-	mu      sync.Mutex
-	entries map[uint64]*inspectionEntry
-	order   []uint64
+	onChange func()
+	mu       sync.Mutex
+	entries  map[uint64]*inspectionEntry
+	order    []uint64
+}
+
+func (s *inspectionStore) changed() {
+	if s.onChange != nil {
+		s.onChange()
+	}
 }
 
 func previewHeaders(h http.Header) (http.Header, string) {
@@ -86,6 +93,7 @@ func previewHeaders(h http.Header) (http.Header, string) {
 	return result, note
 }
 func (s *inspectionStore) begin(id uint64, l *Lane, app, method, address string, r *http.Request) {
+	defer s.changed()
 	headers := r.Header.Clone()
 	headers.Set("Host", r.Host)
 	headers, note := previewHeaders(headers)
@@ -103,6 +111,7 @@ func (s *inspectionStore) begin(id uint64, l *Lane, app, method, address string,
 	}
 }
 func (s *inspectionStore) response(id uint64, r *http.Response) {
+	defer s.changed()
 	headers, note := previewHeaders(r.Header)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -118,6 +127,7 @@ func (s *inspectionStore) response(id uint64, r *http.Response) {
 	}
 }
 func (s *inspectionStore) read(id uint64, response bool, p []byte, err error) {
+	defer s.changed()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e := s.entries[id]
@@ -140,6 +150,7 @@ func (s *inspectionStore) read(id uint64, response bool, p []byte, err error) {
 	e.view.Version++
 }
 func (s *inspectionStore) finish(id uint64, status, detail string) {
+	defer s.changed()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if e := s.entries[id]; e != nil {
@@ -278,6 +289,13 @@ func inspectionSummary(e *inspectionEntry) requestSummary {
 		s.responseBytes = &n
 	}
 	return s
+}
+func (s *inspectionStore) clear() {
+	s.mu.Lock()
+	s.entries = map[uint64]*inspectionEntry{}
+	s.order = nil
+	s.mu.Unlock()
+	s.changed()
 }
 func (s *inspectionStore) summary(id uint64) (requestSummary, bool) {
 	s.mu.Lock()

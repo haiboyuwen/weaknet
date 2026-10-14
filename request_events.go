@@ -15,14 +15,15 @@ import (
 )
 
 type EventView struct {
-	Method        string `json:"method,omitempty"`
-	URL           string `json:"url,omitempty"`
-	StatusCode    int    `json:"status_code,omitempty"`
-	ContentType   string `json:"content_type,omitempty"`
-	RequestType   string `json:"request_type,omitempty"`
-	Protocol      string `json:"protocol,omitempty"`
-	RequestBytes  *int64 `json:"request_bytes,omitempty"`
-	ResponseBytes *int64 `json:"response_bytes,omitempty"`
+	Method           string `json:"method,omitempty"`
+	URL              string `json:"url,omitempty"`
+	StatusCode       int    `json:"status_code,omitempty"`
+	ContentType      string `json:"content_type,omitempty"`
+	RequestType      string `json:"request_type,omitempty"`
+	Protocol         string `json:"protocol,omitempty"`
+	RequestBytes     *int64 `json:"request_bytes,omitempty"`
+	ResponseBytes    *int64 `json:"response_bytes,omitempty"`
+	PreviewAvailable bool   `json:"preview_available,omitempty"`
 
 	RecordedAt int64  `json:"recorded_at"`
 	Started    int64  `json:"started,omitempty"`
@@ -37,24 +38,35 @@ type EventView struct {
 	Serial     string `json:"serial,omitempty"`
 	App        string `json:"app,omitempty"`
 	Host       string `json:"host,omitempty"`
+	Device     string `json:"device,omitempty"`
+	Shaped     bool   `json:"shaped"`
 }
 
-// 更新原事件，不增加日志条数；已经离开最近 300 条的事件不再保留。
+// 同时更新实时列表和请求历史；离开实时列表的请求仍可在历史中完成。
 func (a *App) finishEvent(id uint64, status, detail string) {
+	defer a.updates.notify()
 	summary, captured := a.inspections.summary(id)
 	a.evMu.Lock()
 	defer a.evMu.Unlock()
-	for i := range a.eventDetails {
+	now := time.Now().UnixMilli()
+	finish := func(e *EventView) {
+		if e == nil || e.Status != "active" {
+			return
+		}
+		e.Status, e.Detail = status, detail
+		if captured {
+			applyRequestSummary(e, summary)
+		}
+		e.Ended = max(e.Started, now)
+		if e.Started > 0 {
+			e.DurationMS = e.Ended - e.Started
+		}
+	}
+	finish(a.requestHistory.records[id])
+	for i := len(a.eventDetails) - 1; i >= 0; i-- {
 		e := &a.eventDetails[i]
-		if e.ID == id && e.Status == "active" {
-			e.Status, e.Detail = status, detail
-			if captured {
-				applyRequestSummary(e, summary)
-			}
-			e.Ended = max(e.Started, time.Now().UnixMilli())
-			if e.Started > 0 {
-				e.DurationMS = e.Ended - e.Started
-			}
+		if e.ID == id {
+			finish(e)
 			return
 		}
 	}
@@ -192,7 +204,12 @@ func (l *Lane) requestEvent(source, app, method, raw, detail string) uint64 {
 	}
 	u, _ := url.Parse(raw)
 	decrypted := source == "代理" && strings.Contains(detail, "HTTPS 解密")
-	return l.app.recordEvent(EventView{Method: method, URL: urlAddress, Text: fmt.Sprintf("[%s] [%s][%s] %s · %s%s", l.name, requestKind(raw), source, address, app, detail), Status: status, Scope: scope, Serial: l.serial, App: app, Host: u.Hostname(), Decrypted: decrypted})
+	previewable := method == "GET" && (resourcePreviewKind(raw, "") != "" || resourceFileHost(u.Hostname())) || method == "" && resourcePreviewKind(raw, "") != ""
+	id := l.app.recordEvent(EventView{Method: method, URL: urlAddress, Text: fmt.Sprintf("[%s] [%s][%s] %s · %s%s", l.name, requestKind(raw), source, address, app, detail), Status: status, Scope: scope, Serial: l.serial, Device: l.name, App: app, Host: u.Hostname(), Decrypted: decrypted, Shaped: strings.Contains(detail, " · 弱网"), PreviewAvailable: previewable})
+	if previewable {
+		l.app.previewTargets.add(id, raw)
+	}
+	return id
 }
 
 func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) uint64 {
@@ -208,7 +225,7 @@ func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) uint64
 		if err != nil {
 			host = target
 		}
-		return l.app.recordEvent(EventView{Method: "CONNECT", URL: "https://" + target, Text: fmt.Sprintf("[%s] [HTTPS 隧道][代理] CONNECT %s · %s · %s（加密路径不可见）", l.name, target, app, mode), Status: "active", Scope: "tunnel", Serial: l.serial, App: app, Host: host})
+		return l.app.recordEvent(EventView{Method: "CONNECT", URL: "https://" + target, Text: fmt.Sprintf("[%s] [HTTPS 隧道][代理] CONNECT %s · %s · %s（加密路径不可见）", l.name, target, app, mode), Status: "active", Scope: "tunnel", Serial: l.serial, Device: l.name, App: app, Host: host, Shaped: shaped})
 	}
 	return l.requestEvent("代理", app, method, target, " · "+mode)
 }
@@ -218,14 +235,20 @@ func (l *Lane) proxyRequestEvent(app, method, target string, shaped bool) uint64
 func (a *App) setEventHTTPMetadata(id uint64, code int, contentType, protocol string, count *int64) {
 	a.evMu.Lock()
 	defer a.evMu.Unlock()
-	for i := range a.eventDetails {
+	update := func(e *EventView) {
+		e.StatusCode, e.ContentType, e.Protocol = code, contentType, protocol
+		if count != nil {
+			n := *count
+			e.ResponseBytes = &n
+		}
+	}
+	if e := a.requestHistory.records[id]; e != nil {
+		update(e)
+	}
+	for i := len(a.eventDetails) - 1; i >= 0; i-- {
 		e := &a.eventDetails[i]
 		if e.ID == id {
-			e.StatusCode, e.ContentType, e.Protocol = code, contentType, protocol
-			if count != nil {
-				n := *count
-				e.ResponseBytes = &n
-			}
+			update(e)
 			return
 		}
 	}

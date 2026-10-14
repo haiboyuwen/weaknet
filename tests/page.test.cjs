@@ -3,24 +3,25 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const page=fs.readFileSync(require('node:path').join(__dirname,'../page.html'),'utf8');
-const script=page.split('<script>')[1].split('</script>')[0].split('\nrenderProfiles();selectView(view);refresh();')[0];
+const script=page.split('<script>')[1].split('</script>')[0].split('\nrenderProfiles();selectView(view);')[0];
 function setup(){
- const elements=new Map(),storage=new Map(),calls=[],timers=new Map();let clock=0;
- function element(id){if(!elements.has(id))elements.set(id,{value:'',innerHTML:'',textContent:'',style:{},firstChild:{textContent:''},classList:{toggle(){}},clientWidth:0,hidden:false,disabled:false,setAttribute(){},removeAttribute(){},addEventListener(){},contains(){return false},showModal(){},close(){},focus(){},select(){},appendChild(node){node.parentElement=this;return node}});return elements.get(id)}
+ const elements=new Map(),storage=new Map(),calls=[],timers=new Map(),streams=[];let clock=0,nodeCounter=0;
+ class EventSource{constructor(url){this.url=url;this.listeners={};streams.push(this)}addEventListener(type,fn){this.listeners[type]=fn}close(){this.closed=true}emit(type,data){this.listeners[type]?.({data:JSON.stringify(data)})}}
+ function element(id){if(!elements.has(id))elements.set(id,{value:'',innerHTML:'',textContent:'',style:{},children:[],replaceChildren(){this.children=[];this.innerHTML=''},querySelectorAll(){return this.children.filter(n=>['VIDEO','AUDIO'].includes(n.tagName))},pause(){this.paused=true},load(){this.loaded=true},firstChild:{textContent:''},classList:{toggle(){}},clientWidth:0,hidden:false,disabled:false,setAttribute(){},removeAttribute(){},addEventListener(){},contains(){return false},showModal(){},close(){},focus(){},select(){},appendChild(node){this.children.push(node);node.parentElement=this;return node}});return elements.get(id)}
  const config={down_kbps:400,up_kbps:200,delay_ms:200,jitter_ms:50,loss_pct:1,window_kb:128,outage:'',blacklist_on:false,blacklist:[],whitelist:[]};
  const state={config,presets:[],devices:[],lanes:[],apps:[],events:[],event_seq:0,adb:false,_appFilter:''};
  const response=data=>({ok:true,text:async()=>JSON.stringify(data)});
  let handler=(url,options)=>response(url.startsWith('/api/config')?{...config,...JSON.parse(options.body)}:state);
  const context=vm.createContext({
-  document:{getElementById:element,querySelectorAll:()=>[],activeElement:null,hidden:false,addEventListener(){}},
+  document:{createElement:tag=>{const node=element('created-'+(++nodeCounter));node.tagName=tag.toUpperCase();return node},head:{appendChild(){}},getElementById:element,querySelectorAll:()=>[],activeElement:null,hidden:false,addEventListener(){}},
   window:{getSelection:()=>null,addEventListener(){}},navigator:{clipboard:{writeText:async()=>{}}},
   localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},
   setTimeout:fn=>{timers.set(++clock,fn);return clock},clearTimeout:key=>timers.delete(key),setInterval(){},
   fetch:async(url,options)=>{calls.push({url,options});return handler(url,options)},
-  AbortController,URLSearchParams,URL,Blob,Date,devicePixelRatio:1,confirm:()=>true,prompt:()=>null
+  EventSource,AbortController,URLSearchParams,URL,Blob,Date,TextDecoder,Uint8Array,location:{href:'http://127.0.0.1:8899/'},devicePixelRatio:1,confirm:()=>true,prompt:()=>null
  });
  const run=code=>vm.runInContext(code,context);run(script);context.testState=state;run('state=testState;displayState=state;renderConfig()');
- return {run,element,storage,calls,state,response,setHandler:fn=>handler=fn};
+ return {run,element,storage,calls,timers,streams,state,response,setHandler:fn=>handler=fn};
 }
 test('快速连续调整参数合并提交，不丢失前一个字段',async()=>{
  const h=setup();h.run("send('down_kbps',300);send('delay_ms',250)");await h.run('flushParams()');
@@ -47,6 +48,25 @@ test('暂停期间显示保持不变，恢复后更新',async()=>{
  const h=setup();h.run("$('pause').onclick()");h.setHandler(()=>h.response({...h.state,event_seq:4,events:['new event']}));await h.run('refresh()');
  assert.equal(h.run('displayState.events.length'),0);assert.match(h.element('pauseInfo').textContent,/新增 4 条/);
  h.run("$('pause').onclick()");assert.equal(h.run('displayState.events[0]'),'new event');
+});
+test('SSE 自动更新列表，与实时跟随独立；暂停只冻结显示，后台继续接收',()=>{
+ const h=setup();h.run("view='monitor';$('evFollow').checked=false;connectStateStream()");const stream=h.streams[0];
+ const row={id:1,scope:'http',status:'active',text:'12:00:00 first'};
+ stream.emit('state',{...h.state,revision:1,event_details:[row]});assert.equal(h.run('eventMenuRows[0].id'),1);
+ stream.emit('state',{...h.state,revision:2,event_details:[{...row,id:2},row]});assert.equal(h.run('eventMenuRows.length'),2);assert.equal(h.calls.length,0);
+ h.run("$('pauseRequests').onclick()");stream.emit('state',{...h.state,revision:3,event_details:[{...row,id:3},row]});assert.equal(h.run('state.revision'),3);assert.equal(h.run('eventMenuRows[0].id'),2);assert.equal(stream.closed,undefined);
+ h.run("$('pauseRequests').onclick()");assert.equal(h.run('eventMenuRows[0].id'),3);
+ assert.doesNotMatch(page,/setInterval\([^\n]*(?:refresh\(\)|pollRealtime|pollDashboard)/);
+});
+test('SSE 保留请求数据处理流量快照，忽略旧版本，切换 App 关闭旧连接，重连允许服务重启',()=>{
+ const h=setup();h.run('connectStateStream()');const first=h.streams[0];
+ first.emit('state',{...h.state,revision:10,event_seq:10,event_details:[{id:10,scope:'http',text:'first'}]});
+ first.emit('metrics',{...h.state,revision:10,event_seq:0,event_details:null,events:null});assert.equal(h.run('state.event_details[0].id'),10);assert.equal(h.run('state.event_seq'),10);
+ first.emit('state',{...h.state,revision:9,event_details:[]});assert.equal(h.run('state.event_details[0].id'),10);
+ first.onopen();first.emit('state',{...h.state,revision:0,event_details:[]});assert.equal(h.run('state.revision'),0);
+ h.run("fApp='com.other';connectStateStream()");assert.equal(first.closed,true);assert.match(h.streams[1].url,/app=com.other/);
+ first.emit('state',{...h.state,revision:99,event_details:[]});assert.equal(h.run('state.revision'),0);
+ h.run('closeStateStream();document.hidden=true;connectStateStream()');assert.equal(h.streams.length,2);
 });
 test('复制请求地址只提取脱敏 URL，不混入方法和 App 信息',()=>{
  const h=setup();assert.equal(h.run("eventAddress('12:00:00 [phone] [HTTP][App 日志] POST https://api.example/room?id=REDACTED · com.example.app')"),'https://api.example/room?id=REDACTED');
@@ -154,14 +174,14 @@ test('日志包名下拉展开时轮询不重建候选，键盘确认后保留�
  h.run("$('logApp').onkeydown({key:'Escape'})");assert.equal(h.element('logPkgOptions').hidden,true);
 });
 
-test('事件按结构化手机、App 和域名跟随观测范围，复制保留原文，独立筛选显示包名',async()=>{
+test('请求始终按观测范围筛选，取消实时跟随后仍能切换范围并复制内容',async()=>{
  const h=setup();const row={text:'12:00:00 [Same model] [HTTP][代理] GET http://api.example.com/a · com.example.app · 弱网',serial:'A',app:'com.example.app',host:'api.example.com',status:'active',scope:'http'};
  h.state.event_details=[row,{...row,serial:'B'},{...row,app:'com.other.app'},{...row,host:'cdn.example.com'},{text:'12:00:00 tool event'}];h.state.events=h.state.event_details.map(e=>e.text);
  h.run("fSerial='A';fApp='com.example.app';fHost='api.';renderEvents()");assert.equal(h.run('filteredEvents().length'),1);
  assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/com.example.app/);assert.doesNotMatch(h.run('eventContent(filteredEvents()[0])'),/Same model/);
  const menu=h.run('eventMenuContent(filteredEvents()[0])');assert.match(menu,/data-copy=/);assert.match(menu,/com.example.app/);assert.match(menu,/请求中/);
- h.element('evFollow').checked=false;h.run("$('evFollow').onchange()");assert.equal(h.run('filteredEvents().length'),4);assert.match(h.run('eventContent(filteredEvents()[0])'),/data-app="com.example.app"/);assert.match(h.run('eventContent(filteredEvents()[0])'),/Same model/);
- h.element('evFollow').checked=true;h.run("fSerial='';fApp='';fHost='';renderEvents()");assert.equal(h.run('filteredEvents().length'),4);
+ h.element('evFollow').checked=false;h.run("$('evFollow').onchange()");assert.equal(h.run('filteredEvents().length'),1);assert.match(h.run('eventContent(filteredEvents()[0])'),/data-app="com.example.app"/);assert.match(h.run('eventContent(filteredEvents()[0])'),/Same model/);
+ h.run("fSerial='';fApp='';fHost='';renderEvents()");assert.equal(h.run('filteredEvents().length'),4);
 });
 
 test('HTTPS 轮询保留域名草稿，保存失败也不丢失，成功使用返回设置',async()=>{
@@ -219,12 +239,12 @@ test('请求行速率只匹配同手机 App 域名，未采样显示未知并保
  assert.equal(h.run('liveTrafficIndex().size'),0);assert.match(output,/<td class="metric"[^>]*>—<\/td>/);assert.doesNotMatch(output,/>0\.0 KB\/s<\/td>/);
 });
 
-test('请求中快捷筛选只显示当前范围内未完成接口，完成后自动移出并更新计数',()=>{
+test('状态下拉筛选请求中接口，完成后自动移出，不包含隧道与 App 日志',()=>{
  const h=setup(),make=(id,serial,scope,status)=>({id,serial,scope,status,app:'com.example.app',host:'api.example',text:`10:00:00 [phone] [HTTP][代理] GET https://api.example/${id} · com.example.app`});
  h.state.event_details=[make(1,'A','http','active'),make(2,'B','http','active'),make(3,'A','tunnel','active'),make(4,'A','log','unknown'),make(5,'A','http','complete')];h.state.events=h.state.event_details.map(e=>e.text);
- h.run("fSerial='A';$('evFollow').checked=true;renderEvents()");assert.equal(h.element('evPending').textContent,'请求中 1');
- h.run("$('evPending').onclick()");assert.equal(h.element('evStatus').value,'request_active');assert.equal(h.run('filteredEvents().length'),1);assert.equal(h.run('filteredEvents()[0].id'),1);
- h.state.event_details[0].status='complete';h.run('renderEvents()');assert.equal(h.element('evPending').textContent,'请求中 0');assert.match(h.element('events').innerHTML,/当前没有正在请求的接口/);
+ h.run("fSerial='A';$('evFollow').checked=true;renderEvents()");
+ h.element('evStatus').value='request_active';h.run('renderEvents()');assert.equal(h.run('filteredEvents().length'),1);assert.equal(h.run('filteredEvents()[0].id'),1);
+ h.state.event_details[0].status='complete';h.run('renderEvents()');assert.match(h.element('events').innerHTML,/当前没有正在请求的接口/);
  h.element('evStatus').value='tunnel_active';assert.equal(h.run('filteredEvents().length'),1);assert.equal(h.run('filteredEvents()[0].id'),3);
  h.element('evStatus').value='';h.run('renderEvents()');assert.equal(h.run('filteredEvents().length'),3);
 });
@@ -261,11 +281,122 @@ test('实时请求始终排除 App 日志和工具事件，计数与协议筛选
  h.state.event_details=undefined;h.run("requestContentType='';renderEvents()");assert.equal(h.run('filteredEvents().length'),2);assert.doesNotMatch(h.element('events').innerHTML,/App 日志|tool event/);
 });
 
-test('表格序号在隐藏日志、筛选和排序后连续，详情与选中仍绑定原请求 ID',()=>{
+test('表格序号对应完整请求列表，筛选与排序不重排编号，详情仍绑定原请求 ID',()=>{
  const h=setup(),make=(id,path)=>({id,scope:'http',status:'complete',text:`12:00:00 [phone] [HTTP][代理] GET https://api.example/${path}`});
  h.state.event_details=[make(192,'new'),{...make(180,'log'),scope:'log'},make(172,'middle'),make(20,'old')];h.state.events=h.state.event_details.map(e=>e.text);
  const numbers=()=>[...h.element('events').innerHTML.matchAll(/<td class="row-id"[^>]*>(\d+)<\/td>/g)].map(m=>Number(m[1]));
  h.run('renderEvents()');assert.deepEqual(numbers(),[3,2,1]);assert.match(h.element('events').innerHTML,/title="请求 ID 192">3/);assert.match(h.element('events').innerHTML,/data-request-detail="192"/);
- h.element('evSearch').value='middle';h.run('requestSelected=172;renderEvents()');assert.deepEqual(numbers(),[1]);assert.match(h.element('events').innerHTML,/data-request-row="172" aria-selected="true"/);assert.match(h.element('events').innerHTML,/data-request-detail="172"/);
+ h.element('evSearch').value='middle';h.run('requestSelected=172;renderEvents()');assert.deepEqual(numbers(),[2]);assert.match(h.element('events').innerHTML,/data-request-row="172" aria-selected="true"/);assert.match(h.element('events').innerHTML,/data-request-detail="172"/);
  h.element('evSearch').value='';h.run('requestSortDesc=false;renderEvents()');assert.deepEqual(numbers(),[1,2,3]);assert.match(h.element('events').innerHTML,/title="请求 ID 20">1/);
+});
+
+test('历史读取请求记录，复用实时列表全部列、正文计数与详情 ID',async()=>{
+ const h=setup(),row={id:900,serial:'A',device:'Phone offline',app:'com.example',host:'api.example',scope:'http',status:'complete',decrypted:true,method:'POST',url:'https://api.example/items?token=REDACTED',text:'12:00:00 [Phone] [HTTP][代理] POST https://api.example/items?token=REDACTED · com.example',status_code:201,content_type:'application/json',started:1700000000123,ended:1700000000456,duration_ms:333,request_bytes:25,response_bytes:512};
+ h.state.event_details=[row];h.state.events=[row.text];h.run("view='history';renderEvents()");
+ h.setHandler(()=>h.response({rows:[row],summary:{count:1,active:0,failed:0,up:25,down:512,avg_ms:333},next_before:0}));await h.run('refreshConns(true)');
+ assert.match(h.calls[0].url,/^\/api\/request-history\?/);assert.match(h.element('exportCsv').href,/^\/api\/request-history.csv/);
+ const live=h.element('events').innerHTML,history=h.element('conns').innerHTML;
+ assert.equal(history.replaceAll('实时请求列表 历史','流量与请求列表').replaceAll('historyRequestHelp','requestListHelp').replaceAll('data-history-sort','data-request-sort').replaceAll('data-history-more','data-event-more'),live);
+ assert.match(history,/data-request-detail="900"/);assert.match(history,/Phone offline/);assert.match(history,/25 B/);assert.match(history,/512 B/);assert.match(history,/已解密/);assert.doesNotMatch(history,/data-detail=/);
+});
+test('离开实时列表的历史请求仍按原 ID 显示摘要，详情过期不冒用当前请求',async()=>{
+ const h=setup();h.run("view='history';connData={rows:[{id:700,scope:'http',decrypted:true,host:'old.example',url:'https://old.example/items',text:'12:00:00 [phone] [HTTP][代理] GET https://old.example/items',status:'complete',status_code:200}],summary:{count:1}};");
+ h.setHandler(()=>({ok:false,text:async()=>'请求详情已过期或未采集'}));await h.run('openRequestDetail(700)');
+ assert.equal(h.run('requestDetailEvent.id'),700);assert.match(h.element('requestDetailURL').textContent,/old.example/);assert.match(h.element('requestCaptureNote').textContent,/详情暂不可用/);
+});
+test('历史分页保留游标并传递请求类型、关键词与状态，复制当前排序后的请求',async()=>{
+ const h=setup();h.run("view='history';let historyCopied='';navigator.clipboard.writeText=async text=>historyCopied=text");
+ h.element('hSearch').value='REDACTED';h.element('hType').value='decrypted';h.element('hStatus').value='errors';
+ const row={id:800,scope:'http',text:'12:00:00 [Phone] [HTTP][代理] GET https://api.example/error?token=REDACTED',status:'timeout',detail:'i/o timeout'};
+ h.setHandler(()=>h.response({rows:[row],summary:{count:101,active:0,failed:101,up:0,down:0,avg_ms:2},next_before:800}));await h.run('refreshConns(true)');h.run("$('hNext').onclick()");await new Promise(resolve=>setImmediate(resolve));
+ assert.match(h.calls[1].url,/before=800/);assert.match(h.calls[1].url,/type=decrypted/);assert.match(h.calls[1].url,/q=REDACTED/);assert.match(h.calls[1].url,/status=errors/);assert.match(h.element('hPage').textContent,/第 2 页.*自动更新已暂停/);
+ await h.run("$('copyConns').onclick()");assert.match(h.run('historyCopied'),/api.example\/error\?token=REDACTED/);assert.match(h.run('historyCopied'),/请求失败（超时）/);
+});
+test('历史菜单打开时冻结表格，菜单使用历史行而非实时行',()=>{
+ const h=setup();h.run("connData={rows:[{id:700,scope:'http',text:'12:00:00 old history',status:'complete'}],summary:{count:1,active:0,failed:0,up:0,down:0,avg_ms:0}};renderConns()");
+ const original=h.element('conns').innerHTML;h.run("eventMenuOpen=true;connData.rows=[{id:900,scope:'http',text:'12:00:01 new history'}];renderConns()");
+ assert.equal(h.element('conns').innerHTML,original);assert.equal(h.run('historyMenuRows[0].id'),700);
+ h.run("eventMenuOpen=false;renderConns()");assert.match(h.element('conns').innerHTML,/data-request-detail="900"/);
+});
+
+test('暂停列表固定记录、状态、速率和滚动位置，后台轮询继续',async()=>{
+ const h=setup(),old={id:1,scope:'http',serial:'A',app:'com.example',host:'api.example',url:'https://api.example/old',text:'12:00:00 [phone] [HTTP][代理] GET https://api.example/old',status:'active',duration_ms:10};
+ h.state.event_details=[old];h.state.lanes=[{serial:'A',stats:{hosts:[{host:'api.example',app:'com.example',kbs:2}]}}];h.run("fSerial='A';renderEvents();$('pauseRequests').onclick()");
+ h.element('events').scrollTop=250;h.element('events').scrollLeft=60;const before=h.element('events').innerHTML,count=h.element('evCount').textContent;
+ old.status='complete';h.state.lanes[0].stats.hosts[0].kbs=99;
+ const incoming={...h.state,event_seq:5,event_details:[{...old,id:2,url:'https://api.example/new',text:old.text.replace('old','new')},old]};
+ h.setHandler(()=>h.response(incoming));h.run("fSerial='B'");await h.run('refresh()');h.run('renderEvents()');
+ assert.equal(h.run('state.event_seq'),5);assert.equal(h.run('displayState.event_details.length'),2);assert.equal(h.element('events').innerHTML,before);assert.equal(h.element('evCount').textContent,count);
+ assert.equal(h.element('events').scrollTop,250);assert.equal(h.element('events').scrollLeft,60);assert.match(count,/列表已暂停/);assert.match(before,/2.0 KB\/s/);assert.ok(h.calls.every(c=>!c.options.body));assert.equal(h.element('pauseRequests').textContent,'恢复列表');
+});
+test('重新实时跟随显示后台最新记录，恢复最新在前并定位最新请求',()=>{
+ const h=setup(),old={id:1,scope:'http',text:'12:00:00 old',status:'active'};
+ h.state.event_details=[old];h.run("renderEvents();$('evFollow').checked=false;$('evFollow').onchange()");h.element('events').scrollTop=300;h.element('events').scrollLeft=80;
+ h.state.event_details=[{...old,id:9,text:'12:00:09 newest'},old];h.run("requestSort='url';requestSortDesc=false;$('evFollow').checked=true;$('evFollow').onchange()");
+ assert.equal(h.run('requestSort'),'id');assert.equal(h.run('requestSortDesc'),true);assert.equal(h.run('requestSelected'),9);assert.equal(h.run('eventMenuRows[0].id'),9);assert.equal(h.element('events').scrollTop,0);assert.equal(h.element('events').scrollLeft,80);assert.match(h.element('events').innerHTML,/data-request-row="9" aria-selected="true"/);
+ h.element('events').scrollTop=150;h.run('renderEvents()');assert.equal(h.element('events').scrollTop,0);assert.equal(h.calls.length,0);
+});
+test('清空只影响当前列表，历史和后台请求保留，后续新请求照常显示',()=>{
+ const h=setup(),old={id:1,recorded_at:Date.now()-1000,scope:'http',text:'12:00:00 old',status:'complete'};h.state.event_details=[old];
+ h.run("connData={rows:state.event_details.slice(),summary:{count:1}};renderEvents();$('clearRequests').onclick()");
+ assert.equal(h.run('filteredEvents().length'),0);assert.equal(h.run('state.event_details.length'),1);assert.equal(h.run('connData.rows.length'),1);assert.equal(h.calls.length,0);assert.ok(h.storage.has('wn_request_list_cleared_at'));assert.match(h.element('events').innerHTML,/没有符合条件的请求/);
+ const time=h.run('requestListClearedAt+1');h.state.event_details=[{...old,id:2,recorded_at:time,text:'12:00:01 new'},old];h.run('renderEvents()');assert.equal(h.run('eventMenuRows.map(e=>e.id).join()'),'2');
+ h.run("requestListClearedAt=Number(store.get('request_list_cleared_at'));renderEvents()");assert.equal(h.run('eventMenuRows.map(e=>e.id).join()'),'2');
+});
+test('暂停列表时清空仍保持冻结，恢复后才显示新采集请求',()=>{
+ const h=setup(),old={id:1,recorded_at:Date.now()-1000,scope:'http',text:'12:00:00 old',status:'complete'};h.state.event_details=[old];
+ h.run("renderEvents();$('pauseRequests').onclick();$('clearRequests').onclick()");
+ h.state.event_details=[{...old,id:3,recorded_at:h.run('requestListClearedAt+1'),text:'12:00:01 new'}];h.run('renderEvents()');assert.equal(h.run('eventMenuRows.length'),0);
+ h.run("$('pauseRequests').onclick()");assert.equal(h.run('eventMenuRows[0].id'),3);assert.equal(h.run('requestSelected'),3);assert.equal(h.calls.length,1);assert.equal(h.element('pauseRequests').textContent,'暂停列表');
+});
+test('菜单关闭后完成实时跟随定位，全局暂停仍允许停留在当前滚动位置',()=>{
+ const h=setup();h.state.event_details=[{id:7,scope:'http',text:'12:00:00 newest',status:'active'}];h.run("eventMenuOpen=true;$('evFollow').checked=true;$('evFollow').onchange()");
+ assert.equal(h.run('requestFollowJumpPending'),true);h.element('events').scrollTop=200;h.run('eventMenuOpen=false;renderEvents()');assert.equal(h.element('events').scrollTop,0);assert.equal(h.run('requestSelected'),7);
+ h.run('paused=true');h.element('events').scrollTop=120;h.run('renderEvents()');assert.equal(h.element('events').scrollTop,120);assert.equal(h.run('paused'),true);
+});
+
+test('152 条请求中筛选出的第 151 条仍显示 151，与事件 ID 的间隔无关',()=>{
+ const h=setup();h.state.event_details=Array.from({length:152},(_,i)=>({id:(i+1)*7,scope:'http',serial:'A',status:i===150?'active':'complete',method:'GET',url:`https://api.example/${i+1}.json`,text:`12:00:00 [phone] [HTTP][代理] GET https://api.example/${i+1}.json`})).reverse();
+ h.state.event_details.splice(5,0,{id:1100,scope:'log',text:'12:00:00 [App 日志] invisible'});h.element('evStatus').value='active';h.run('renderEvents()');
+ assert.match(h.element('evCount').textContent,/显示 1 \/ 152 条/);assert.match(h.element('events').innerHTML,/title="请求 ID 1057">151<\/td>/);assert.match(h.element('events').innerHTML,/data-request-detail="1057"/);
+ h.run("requestSort='url';requestSortDesc=false;renderEvents()");assert.match(h.element('events').innerHTML,/title="请求 ID 1057">151<\/td>/);
+});
+
+test('资源预览识别 MP4、SVGA、图片和文本，POST 与加密隧道不重放',()=>{
+ const h=setup();for(const [url,type,expected] of [['https://files.example/a.MP4?x=REDACTED','application/octet-stream','video'],['https://files.example/a.svga','application/zip','svga'],['https://files.example/a.txt','','text'],['https://files.example/a','application/json','text'],['https://files.example/a.webp','','image']]) {
+  assert.equal(h.run(`resourceKind(${JSON.stringify({method:'GET',scope:'http',url,content_type:type})})`),expected);
+ }
+ assert.equal(h.run("resourceKind({method:'POST',scope:'http',url:'https://files.example/a.mp4'})"),'');assert.equal(h.run("resourceKind({method:'CONNECT',scope:'tunnel',url:'https://files.example:443'})"),'');
+});
+test('视频预览只使用请求 ID 地址，轮询不重置播放器，关闭后释放播放与加载',async()=>{
+ const h=setup();h.setHandler(()=>h.response({kind:'video',resource_url:'/api/requests/7/resource'}));
+ await h.run("showResourcePreview({id:7,method:'GET',scope:'http',url:'https://files.example/a.mp4?signature=REDACTED',preview_available:true})");
+ const media=h.element('resourcePreviewHost').children[0];assert.equal(media.tagName,'VIDEO');assert.equal(media.controls,true);assert.equal(media.src,'/api/requests/7/resource');assert.equal(h.element('resourcePreview').hidden,false);
+ await h.run("showResourcePreview({id:7,method:'GET',scope:'http',url:'https://files.example/a.mp4',preview_available:true})");assert.equal(h.calls.length,1);assert.equal(h.element('resourcePreviewHost').children[0],media);
+ h.run('stopResourcePreview()');assert.equal(media.paused,true);assert.equal(media.loaded,true);assert.equal(h.element('resourcePreviewHost').children.length,0);assert.equal(h.element('resourcePreview').hidden,true);
+});
+test('切换资源时取消旧文本加载，较晚返回的资源不会覆盖新图片',async()=>{
+ const h=setup();let finish;h.setHandler(url=>url==='/api/requests/1/preview'?h.response({kind:'text',resource_url:'/api/requests/1/resource'}):url==='/api/requests/2/preview'?h.response({kind:'image',resource_url:'/api/requests/2/resource'}):{ok:true,arrayBuffer:()=>new Promise(resolve=>finish=resolve)});
+ const first=h.run("showResourcePreview({id:1,method:'GET',url:'https://files.example/a.txt',preview_available:true})");await new Promise(resolve=>setImmediate(resolve));
+ const request=h.calls.find(c=>c.url==='/api/requests/1/resource');await h.run("showResourcePreview({id:2,method:'GET',url:'https://files.example/a.png',preview_available:true})");assert.equal(request.options.signal.aborted,true);
+ finish(new TextEncoder().encode('<script>unsafe()</script>').buffer);await first;
+ assert.equal(h.element('resourcePreviewHost').children[0].tagName,'IMG');assert.equal(h.element('resourcePreviewHost').children[0].src,'/api/requests/2/resource');assert.equal(h.element('resourcePreviewHost').children.length,1);
+});
+test('文本以纯文本展示，旧记录使用已采集片段而不猜测脱敏地址',async()=>{
+ const h=setup();await h.run("showResourcePreview({id:1,method:'GET',url:'https://files.example/a.html'},{response:{body:'<script>unsafe()</script>',truncated:true,headers:{}}})");
+ assert.equal(h.element('resourcePreviewHost').children[0].tagName,'PRE');assert.equal(h.element('resourcePreviewHost').children[0].textContent,'<script>unsafe()</script>');assert.match(h.element('resourcePreviewStatus').textContent,/已截断/);assert.equal(h.calls.length,0);
+});
+test('清除数据调用服务端清空接口，并重置实时列表的本地清空标记',async()=>{
+ const h=setup(),old={id:1,recorded_at:Date.now()-1000,scope:'http',text:'12:00:00 old',status:'complete'};h.state.event_details=[old];
+ h.run("renderEvents();$('clearRequests').onclick()");assert.ok(Number(h.run('requestListClearedAt'))>0);
+ h.setHandler(url=>h.response(url.startsWith('/api/request-history/clear')?{ok:true}:{...h.state,event_details:[]}));
+ h.run('ask=async()=>true');await h.run("$('clearData').onclick()");
+ assert.ok(h.calls.some(c=>c.url==='/api/request-history/clear'&&c.options.method==='POST'));
+ assert.equal(h.run('requestListClearedAt'),0);assert.equal(h.run('filteredEvents().length'),0);
+});
+test('实时列表分批渲染，避免一次渲染上万行',()=>{
+ const h=setup(),now=Date.now();h.state.event_details=Array.from({length:1200},(_,i)=>({id:1200-i,recorded_at:now,scope:'http',text:'12:00:00 r'+i,status:'complete'}));
+ h.run('renderEvents()');assert.equal(h.run('eventMenuRows.length'),1200);assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,500);
+ assert.match(h.element('events').innerHTML,/还有 700 条未渲染/);assert.match(h.element('events').innerHTML,/<td[^>]*>\s*<\/td>|1200/);
+ h.run('requestRenderLimit+=requestRenderStep;renderEvents()');assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,1000);
 });

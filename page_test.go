@@ -39,12 +39,12 @@ func TestPageBehavior(t *testing.T) {
 
 func TestStateKeepsRecentEvents(t *testing.T) {
 	app := newTestApp(t, "unlimited")
-	for i := 0; i < 310; i++ {
+	for i := 0; i < maxRealtimeEvents+10; i++ {
 		app.event("[HTTP][App 日志] https://api.example/room")
 	}
 	st := app.state("")
-	if len(st.Events) != 300 {
-		t.Fatalf("事件数 = %d，期望 300", len(st.Events))
+	if len(st.Events) != maxRealtimeEvents {
+		t.Fatalf("事件数 = %d，期望 %d", len(st.Events), maxRealtimeEvents)
 	}
 	st.Events[0] = "不能修改内部存储"
 	if strings.Contains(eventText(app), st.Events[0]) {

@@ -1,0 +1,13 @@
+Embedded resource-preview dependencies
+
+SVGAPlayer-Web 2.3.2: https://github.com/svga/SVGAPlayer-Web (Apache-2.0).
+Includes pako, protobufjs and value-animator; available upstream license copies accompany this notice.
+value-animator upstream package metadata: https://github.com/yyued/value-animator/blob/master/package.json
+Declared value-animator license: ISC
+JSZip 3.10.1: https://github.com/Stuk/jszip (distributed under the MIT option).
+Howler 2.2.4: https://github.com/goldfire/howler.js (MIT).
+
+JavaScript asset SHA-256:
+howler-2.2.4.min.js e7b836445d8c44bddc99b7678fa336a9d5c5ede27cc709c5fae8b1748ba7431b
+jszip-3.10.1.min.js acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e
+svga-2.3.2.min.js b04d24d3a41a7a602d5ab6f917e9c0453f23709fdd08069d37e5ae41265fcbf9

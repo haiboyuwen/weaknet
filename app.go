@@ -42,14 +42,17 @@ type App struct {
 	pkgMu sync.Mutex
 	pkgs  map[string]*pkgCache // serial -> UID 包名缓存
 
-	inspections inspectionStore
-	conns       ConnStore // 历史连接
-	adbLogs     adbLogStore
+	inspections    inspectionStore
+	conns          ConnStore // 历史连接
+	adbLogs        adbLogStore
+	previewTargets resourcePreviewStore
+	updates        stateUpdates
 
-	evMu         sync.Mutex
-	events       []string
-	eventSeq     uint64
-	eventDetails []EventView
+	evMu           sync.Mutex
+	events         []string
+	eventSeq       uint64
+	eventDetails   []EventView
+	requestHistory requestHistory // 请求摘要历史，与实时列表使用相同的记录和 ID
 
 	quit chan struct{}
 	once sync.Once
@@ -74,13 +77,30 @@ const (
 )
 
 func newApp(cfg *Config, dnsServer, adb string, basePort int) *App {
-	return &App{cfg: cfg, dnsServer: dnsServer, adb: adb, basePort: basePort,
+	a := &App{cfg: cfg, dnsServer: dnsServer, adb: adb, basePort: basePort,
 		lanes: map[string]*Lane{}, devices: map[string]DeviceInfo{}, busy: map[string]string{},
 		resume:   map[string]*resumeState{},
 		dnsCache: map[string]dnsEntry{}, pkgs: map[string]*pkgCache{}, quit: make(chan struct{})}
+	a.inspections.onChange = a.updates.notify
+	return a
 }
 
 func (a *App) requestQuit() { a.once.Do(func() { close(a.quit) }) }
+
+// 实时请求列表保留的最大事件数。
+const maxRealtimeEvents = 10000
+
+// clearRequestData 清空实时请求列表、请求历史和已采集的请求详情；事件序号保持递增，
+// 避免页面把清空后的新请求当成已读。进行中的请求之后的状态更新会因找不到记录而被忽略。
+func (a *App) clearRequestData() {
+	a.evMu.Lock()
+	a.events = nil
+	a.eventDetails = nil
+	a.requestHistory = requestHistory{}
+	a.evMu.Unlock()
+	a.inspections.clear()
+	a.updates.notify()
+}
 
 func (a *App) event(msg string) {
 	a.addEvent(msg, "", "")
@@ -102,13 +122,16 @@ func (a *App) recordEvent(event EventView) uint64 {
 	a.eventSeq++
 	id := a.eventSeq
 	event.ID, event.Text = id, line
-	a.events = append([]string{line}, a.events...)
-	a.eventDetails = append([]EventView{event}, a.eventDetails...)
-	if len(a.events) > 300 {
-		a.events = a.events[:300]
-		a.eventDetails = a.eventDetails[:300]
+	a.requestHistory.add(event)
+	// 最旧在前、追加写入；超过上限时丢弃最旧的，append 扩容时才真正回收。
+	a.events = append(a.events, line)
+	a.eventDetails = append(a.eventDetails, event)
+	if len(a.events) > maxRealtimeEvents {
+		a.events = a.events[1:]
+		a.eventDetails = a.eventDetails[1:]
 	}
 	a.evMu.Unlock()
+	a.updates.notify()
 	log.Println(msg)
 	return id
 }
@@ -504,6 +527,7 @@ type LaneView struct {
 }
 
 type State struct {
+	Revision     uint64              `json:"revision"`
 	HTTPS        *HTTPSStatus        `json:"https,omitempty"`
 	Config       Params              `json:"config"`
 	Presets      []map[string]string `json:"presets"`
@@ -517,7 +541,11 @@ type State struct {
 }
 
 func (a *App) state(appFilter string) State {
-	st := State{Config: a.cfg.Get(), Adb: a.adb != "", Devices: []DeviceView{}, Lanes: []LaneView{}, Apps: a.conns.apps()}
+	return a.stateSnapshot(appFilter, true)
+}
+
+func (a *App) stateSnapshot(appFilter string, withRequests bool) State {
+	st := State{Revision: a.updates.revision.Load(), Config: a.cfg.Get(), Adb: a.adb != "", Devices: []DeviceView{}, Lanes: []LaneView{}, Apps: a.conns.apps()}
 	if a.https != nil {
 		v := a.https.status()
 		st.HTTPS = &v
@@ -550,10 +578,20 @@ func (a *App) state(appFilter string) State {
 	for _, l := range lanes {
 		st.Lanes = append(st.Lanes, LaneView{l.serial, l.name, l.port, l.statsFor(appFilter)})
 	}
+	if !withRequests {
+		return st
+	}
 	a.evMu.Lock()
-	st.Events = append([]string{}, a.events...)
+	// 对外保持最新在前。
+	st.Events = make([]string, len(a.events))
+	st.EventDetails = make([]EventView, len(a.eventDetails))
+	for i, line := range a.events {
+		st.Events[len(a.events)-1-i] = line
+	}
+	for i, e := range a.eventDetails {
+		st.EventDetails[len(a.eventDetails)-1-i] = e
+	}
 	st.EventSeq = a.eventSeq
-	st.EventDetails = append([]EventView{}, a.eventDetails...)
 	a.evMu.Unlock()
 	now := time.Now().UnixMilli()
 	summaries := a.inspections.summaries()
