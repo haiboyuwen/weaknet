@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>弱网模拟器</title>
 <style>
-:root{color-scheme:light dark;--bg:#f5f7fb;--card:#fff;--ink:#1d2738;--quiet:#69758a;--line:#e1e7ef;--accent:#2f6fde;--soft:#edf3ff;--warn:#b76a08;--good:#16834b;--bad:#d53343}
+:root{color-scheme:light dark;--bg:#f5f7fb;--card:#fff;--ink:#1d2738;--quiet:#5f6b80;--line:#e1e7ef;--accent:#2f6fde;--soft:#edf3ff;--warn:#9a5b00;--good:#16834b;--bad:#d53343}
 @media(prefers-color-scheme:dark){:root{--bg:#12161e;--card:#1b2230;--ink:#e6edf8;--quiet:#9caac0;--line:#303c50;--accent:#80aaff;--soft:#243654;--warn:#f4b65a;--good:#63cd96;--bad:#ff8792}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
 [hidden]{display:none!important}button,input,select,textarea{font:inherit}button,.btn{border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);padding:7px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px}
@@ -87,6 +87,62 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
 .events-heading{position:relative}.request-help{margin:0;align-self:center}.request-help>summary{display:flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:50%;font-size:inherit;font-weight:600;line-height:1;color:var(--quiet);list-style:none;cursor:pointer}.request-help>summary::-webkit-details-marker{display:none}.request-help>summary:hover,.request-help[open]>summary{color:var(--accent);border-color:var(--accent);background:var(--soft)}.request-help-panel{position:absolute;left:0;top:calc(100% + 8px);z-index:4;width:460px;max-width:calc(100vw - 64px);padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:var(--card);box-shadow:0 8px 24px #0003;color:var(--quiet);font-size:12px;line-height:1.7}.request-help-panel b{color:var(--ink)}.request-help-panel p:last-child{margin-bottom:0}
 .resource-preview{margin:12px 0;border:1px solid var(--line);border-radius:9px;padding:12px}.resource-preview h3{margin:0;font-size:14px;display:flex;align-items:center;gap:8px}.resource-preview-host{margin-top:10px;display:flex;align-items:center;justify-content:center;min-height:0;border-radius:7px;background:var(--bg);overflow:hidden}.resource-preview-host:empty{display:none}.resource-preview-host img{display:block;max-width:100%;max-height:420px;object-fit:contain}.resource-preview-host video{display:block;width:100%;max-height:420px;background:#000}.resource-preview-host audio{width:100%;margin:12px}.resource-preview-host pre{width:100%;max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 ui-monospace,Consolas,monospace;margin:0;padding:12px}.resource-svga{width:100%;height:360px;background:repeating-conic-gradient(#80808014 0% 25%,transparent 0% 50%) 50% / 20px 20px}.resource-svga canvas{width:100%;height:100%}.resource-preview .hint{margin-bottom:0}
 
+/* 视觉整理：导航与操作区分、语义色、请求表密度与首屏空间。 */
+.top{background:var(--card)}
+.nav{gap:2px}
+.nav button{border:0;border-radius:6px 6px 0 0;background:transparent;color:var(--quiet);box-shadow:inset 0 -2px 0 transparent}
+.nav button:hover{color:var(--accent);background:var(--soft)}
+.nav button.on{background:transparent;color:var(--accent);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+button:disabled:not(.on){opacity:1;color:color-mix(in srgb,var(--quiet) 55%,var(--card));background:var(--bg);border-color:var(--line)}
+button:disabled:hover{border-color:var(--line)}
+button.danger:not(:disabled):hover{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 6%,var(--card))}
+#quickOutage button[data-o=""].on{background:color-mix(in srgb,var(--good) 12%,var(--card));border-color:color-mix(in srgb,var(--good) 45%,var(--card));color:var(--good);font-weight:600}
+#quickOutage button[data-o="stall"].on{background:var(--warn);border-color:var(--warn)}
+#quickOutage button[data-o="reset"].on{background:var(--bad);border-color:var(--bad)}
+.commandBar:has(#quickOutage [data-o="stall"].on){background:color-mix(in srgb,var(--warn) 9%,var(--card));border-bottom-color:var(--warn)}
+.commandBar:has(#quickOutage [data-o="reset"].on){background:color-mix(in srgb,var(--bad) 7%,var(--card));border-bottom-color:var(--bad)}
+.request-filter[aria-pressed=true]{background:var(--soft);color:var(--accent);font-weight:600;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+.request-filter[data-request-code]::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:1px;background:var(--quiet)}
+.request-filter[data-request-code="2"]::before{background:var(--good)}
+.request-filter[data-request-code="3"]::before{background:var(--accent)}
+.request-filter[data-request-code="4"]::before{background:var(--warn)}
+.request-filter[data-request-code="5"]::before{background:var(--bad)}
+.request-pill.redirect{background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);border-color:transparent}
+.request-pill.warning{background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn);border-color:transparent}
+.request-pill.pending{background:transparent;color:var(--quiet);border:1px dashed color-mix(in srgb,var(--quiet) 55%,transparent)}
+.request-method{font:600 11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--ink)}
+.request-method.method-get{color:var(--accent)}
+.request-method.method-delete{color:var(--bad)}
+.request-method.method-connect{color:var(--quiet);font-weight:500}
+.request-table{font:12px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-variant-numeric:tabular-nums}
+.request-table .request-url,.request-table .row-id,.request-table .metric,.request-table td.time{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.request-table tbody tr.tunnel td,.request-table tbody tr.tunnel .request-url,.request-table tbody tr.tunnel .client-button{color:var(--quiet)}
+.request-table tbody tr.failed{background:color-mix(in srgb,var(--bad) 8%,var(--card))}
+.request-table tbody tr.failed td:first-child{box-shadow:inset 3px 0 0 var(--bad)}
+.request-table tbody tr.active td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+#events.request-grid{height:clamp(360px,calc(100dvh - 250px),1100px)}
+#view-monitor>.data-heading{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0)}
+.data-display>#observationCard{border-top:0}
+#globalFilters{display:flex;align-items:center;gap:12px}
+#globalFilters>.head{margin:0!important;flex:none}
+#globalFilters>.head>.status{display:none}
+#globalFilters>.filters{flex:1;min-width:0}
+#trendCard:has(#noLane:not([hidden])) #toggleChart{display:none}
+.tools-toggle{display:none}
+#monitorTools .tools-toggle{display:inline-flex;color:var(--quiet);border-color:transparent;background:transparent}
+#monitorTools .tools-toggle:hover{color:var(--accent);background:var(--soft)}
+#monitorTools #scopeCard .tools-toggle{order:4}
+#monitorTools #listConflict{order:5}
+.tools-fold{display:none}
+#monitorTools.collapsed #monitorScope,#monitorTools.collapsed #monitorHTTPS{display:none}
+#monitorTools .https-draft{gap:6px}
+#monitorTools .https-draft button{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--card))}
+#monitorTools.collapsed .tools-fold{display:flex;align-items:center;gap:12px;padding:5px 14px 5px 14px;border-top:1px solid var(--line)}
+#monitorTools .tools-fold .status{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.request-table tbody tr.warning{background:color-mix(in srgb,var(--warn) 6%,var(--card))}
+.request-table tbody tr.warning td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+.request-table tbody tr.tunnel .request-pill:not(.failure){border-color:transparent;background:color-mix(in srgb,var(--quiet) 9%,transparent);font-weight:500}
+@media(max-width:700px){#globalFilters{display:block}#globalFilters>.head{margin-bottom:8px!important}}
 </style>
 </head>
 <body>
@@ -106,7 +162,7 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
  <div id="filterStaging" hidden><div id="globalFilters"><div class="head"><h2>观测范围</h2><span class="status">流量与请求 · 实时请求列表 历史</span></div>
   <div class="filters scope-filters"><label>监控手机<select id="fSerial"></select></label><label>监控 App<select id="fApp"></select></label><label>域名包含<input id="fHost" placeholder="例如 api.example.com"></label><button id="fClear">清除筛选</button><button class="danger" id="clearData" title="清空实时请求列表和「实时请求列表 历史」的全部记录">清除数据</button></div>
  </div></div>
- <div id="monitorTools" class="grid" hidden><div id="monitorDeviceTools"></div><div id="monitorScope"></div><div id="monitorHTTPS"></div></div>
+ <div id="monitorTools" class="grid" hidden><div id="monitorDeviceTools"></div><div id="monitorScope"></div><div id="monitorHTTPS"></div><div class="tools-fold" id="toolsFold"><span class="status" id="toolsSummary"></span><button class="tools-toggle" id="expandTools" aria-expanded="false" aria-controls="monitorScope monitorHTTPS" title="展开作用范围和 HTTPS 解密">展开 ▾</button></div></div>
  <section id="view-monitor" class="workspace card data-display" aria-labelledby="dataDisplayTitle"><div class="data-heading"><h2 id="dataDisplayTitle">数据显示</h2></div>
   <div class="data-section" id="observationCard"><div id="monitorFilterSlot"></div><div id="trendCard"><div><h2>流量概况</h2><div class="status" id="chartTitle"></div></div>
    <div id="laneBody"><div class="kpis"><div class="kpi"><b id="kDown">—</b><span id="kDownLabel">下行 KB/s</span></div><div class="kpi"><b id="kQueue">—</b><span>整机排队 s</span></div><div class="kpi"><b id="kConns">—</b><span>整机连接</span></div><div class="kpi"><b id="kLoss">—</b><span>整机丢包停顿</span></div></div></div>
@@ -128,7 +184,7 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
  </section>
  <div id="eventsStaging" hidden>
   <div class="card" id="eventsCard"><div class="head"><div class="row events-heading"><h2>流量与请求</h2><span class="hint">实时请求列表</span><details class="request-help"><summary aria-label="实时请求列表说明" title="实时请求列表说明">?</summary><div class="request-help-panel" id="requestListHelp"><b>实时请求列表说明</b><p>请求 / 响应为已采集的正文字节，不含请求头和 TLS 开销；未采集显示 —。未解密隧道不推测 HTTP 状态或内容类型。</p><p>URL 查询参数已脱敏。明文 HTTP 完成表示首个响应传输结束；未解密的 HTTPS 标签仅表示隧道状态；启用解密后显示接口响应状态。卡死模式保持请求中，实际发生超时才标记超时。</p><p>实时列表最多保留最近 10000 条请求事件，历史保留全部请求，直到点击「清除数据」，程序退出后清空。列表默认持续刷新；开启「实时跟随」自动更新并定位到最新请求；关闭后保留当前列表和滚动位置，新请求只在上方提示条数，点击提示查看最新。「暂停列表」固定当前记录和位置，后台继续采集；「恢复列表」显示最新数据。「清空当前列表」只清除本页显示，历史记录与后台采集保留。</p></div></details></div></div>
-   <div class="https-workbench" id="httpsTools" role="group" aria-label="HTTPS 解密操作"><div class="https-inline"><label class="switch"><input type="checkbox" id="httpsEnabled">HTTPS 解密</label><label class="https-add"><span class="sr-only">添加解密域名</span><input id="httpsAddDomain" placeholder="输入域名，或从下方请求直接添加"></label><button id="addHTTPS">添加并解密</button><details class="https-domain-menu" id="httpsDomainMenu"><summary id="httpsDomainSummary">解密域名</summary><div class="https-domains" id="httpsDomainChips"></div></details><span class="status" id="httpsStatus" role="status"></span><button class="link mini" id="eventCASettings">CA 证书 / 接入</button><details class="https-bulk"><summary>批量编辑解密域名</summary><div><label style="flex:1">解密域名（含子域名）<textarea id="httpsDomains" rows="2" placeholder="api.example.com, cdn.example.com"></textarea></label><div class="row"><button id="saveHTTPS" title="增删域名、切换开关时会重连解密方式变化的目标连接。需先让调试包信任固定 CA。">保存并重连</button><button id="resetHTTPS">撤销草稿</button></div></div></details></div></div>
+   <div class="https-workbench" id="httpsTools" role="group" aria-label="HTTPS 解密操作"><div class="https-inline"><label class="switch"><input type="checkbox" id="httpsEnabled">HTTPS 解密</label><label class="https-add"><span class="sr-only">添加解密域名</span><input id="httpsAddDomain" placeholder="输入域名，多个用逗号或空格分隔；也可从下方请求添加" title="可一次粘贴多个域名，含子域名。删除请在「解密域名」菜单中点 ×"></label><button id="addHTTPS">添加并解密</button><details class="https-domain-menu" id="httpsDomainMenu"><summary id="httpsDomainSummary">解密域名</summary><div class="https-domains" id="httpsDomainChips"></div></details><span class="status" id="httpsStatus" role="status"></span><button class="link mini" id="eventCASettings">CA 证书 / 接入</button><textarea id="httpsDomains" hidden aria-hidden="true" tabindex="-1"></textarea><span class="row https-draft" id="httpsDraftActions" hidden><button id="saveHTTPS" title="重新保存解密设置，并重连解密方式变化的目标连接。需先让调试包信任固定 CA。">重试保存</button><button id="resetHTTPS" title="放弃未保存的修改，恢复为已保存的解密域名">撤销</button></span></div></div>
    <div class="request-filters" aria-label="请求快速筛选">
 <div class="request-filter-group" role="group" aria-label="协议筛选"><button class="request-filter" data-request-protocol="" aria-pressed="true">全部</button><button class="request-filter" data-request-protocol="http" aria-pressed="false">HTTP</button><button class="request-filter" data-request-protocol="https" aria-pressed="false">HTTPS</button><button class="request-filter" data-request-protocol="websocket" aria-pressed="false">WebSocket</button></div>
 <div class="request-filter-group" role="group" aria-label="内容类型筛选"><button class="request-filter" data-request-content="json" aria-pressed="false">JSON</button><button class="request-filter" data-request-content="form" aria-pressed="false">表单</button><button class="request-filter" data-request-content="xml" aria-pressed="false">XML</button><button class="request-filter" data-request-content="js" aria-pressed="false">JS</button><button class="request-filter" data-request-content="css" aria-pressed="false">CSS</button><button class="request-filter" data-request-content="graphql" aria-pressed="false">GraphQL</button><button class="request-filter" data-request-content="document" aria-pressed="false">文档</button><button class="request-filter" data-request-content="media" aria-pressed="false">媒体</button><button class="request-filter" data-request-content="other" aria-pressed="false">其他</button></div><div class="request-filter-group" role="group" aria-label="状态码筛选"><button class="request-filter" data-request-code="1" aria-pressed="false">1xx</button><button class="request-filter" data-request-code="2" aria-pressed="false">2xx</button><button class="request-filter" data-request-code="3" aria-pressed="false">3xx</button><button class="request-filter" data-request-code="4" aria-pressed="false">4xx</button><button class="request-filter" data-request-code="5" aria-pressed="false">5xx</button></div></div>
@@ -159,7 +215,7 @@ h1{font-size:21px;letter-spacing:.02em;margin:0}h2{font-size:15px;margin:0 0 12p
   </div>
   <div class="stack">
    <div id="settingsTools"><div class="card" id="deviceTools"><div class="head"><h2>设备操作</h2><span class="status" id="toolDeviceStatus"></span></div><div class="filters" style="grid-template-columns:1fr 1.5fr"><div class="device-picker-field"><span>执行手机</span><details class="device-picker" id="toolDevicePicker"><summary id="toolSelection">选择手机…</summary><div class="device-picker-menu"><div id="toolDeviceOptions"></div><div class="row toolbar"><button data-tool-select="all">全选空闲手机</button><button data-tool-select="none">取消全选</button></div></div></details></div><div class="package-field" id="toolPackageField"><label for="clrPkg">清空目标 App</label><div class="package-input"><input id="clrPkg" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="toolPkgOptions" autocomplete="off" placeholder="com.example.app"><button id="toolPkgToggle" aria-label="选择操作 App 包名" aria-expanded="false" aria-controls="toolPkgOptions">▾</button></div><div class="package-options" id="toolPkgOptions" role="listbox" aria-label="操作 App 包名候选" hidden></div></div></div><div class="row toolbar"><button class="danger" id="clrLaunchBtn">清空并启动</button><button class="danger" id="clrBtn">清空数据</button><span class="row" id="toolDeviceActions"></span></div><div class="status" id="clrMsg" role="status"></div><div class="hint">操作仅针对勾选手机，共用一组按钮；清空会清除该 App 的登录状态、缓存和配置，执行前会确认。</div></div></div>
-   <div id="settingsScope"><div class="card" id="scopeCard"><div class="head"><h2>作用范围</h2><label class="switch"><input type="checkbox" id="blOn">只对黑名单生效</label></div><div class="scope" id="scope"></div><details id="scopeEditor"><summary id="scopeEditorSummary">黑白名单 ▾</summary><div class="list-editors" id="scopeDetails">
+   <div id="settingsScope"><div class="card" id="scopeCard"><div class="head"><h2>作用范围</h2><label class="switch"><input type="checkbox" id="blOn">只对黑名单生效</label><button class="tools-toggle" id="toggleTools" aria-expanded="true" aria-controls="monitorScope monitorHTTPS" title="收起作用范围和 HTTPS 解密，给请求列表留出空间">收起 ▴</button></div><div class="scope" id="scope"></div><details id="scopeEditor"><summary id="scopeEditorSummary">黑白名单 ▾</summary><div class="list-editors" id="scopeDetails">
 <div class="list-editor"><label for="blacklist">黑名单</label><textarea id="blacklist" rows="1" aria-label="黑名单域名或 App 包名" placeholder="api.example.com,com.example.app" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveBlacklist" aria-label="保存黑名单">保存</button><button id="resetBlacklist" aria-label="撤销黑名单草稿">撤销</button><button id="copyBlacklist" aria-label="复制黑名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="blacklistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="blacklistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
 <div class="list-editor"><label for="whitelist">白名单</label><textarea id="whitelist" rows="1" aria-label="白名单域名或 App 包名" placeholder="googleapis.com,com.android.vending" title="域名（含子域名）或 App 包名，逗号、空格或换行分隔"></textarea><div class="list-controls"><button id="saveWhitelist" aria-label="保存白名单">保存</button><button id="resetWhitelist" aria-label="撤销白名单草稿">撤销</button><button id="copyWhitelist" aria-label="复制白名单">复制</button><details class="list-menu"><summary title="查看 / 删除条目"><span id="whitelistStatus"></span> ▾</summary><div class="list-flyout"><div class="chips" id="whitelistChips"></div><div class="hint">逗号、空格或换行分隔，保存时去重。删除条目后需保存。</div></div></details></div></div>
 </div></details><div class="hint warn" id="listConflict" hidden></div></div></div>
@@ -234,6 +290,7 @@ function renderHTTPS(){
  for(const id of ['httpsEnabled','httpsDomains','httpsAddDomain','addHTTPS','saveHTTPS','resetHTTPS'])$(id).disabled=!info||httpsSaving;
  if(!info){$('httpsStatus').textContent='固定 CA 尚未初始化';return}
  if(!httpsDirty&&!httpsSaving){$('httpsEnabled').checked=info.enabled;const value=info.domains.join(', ');if($('httpsDomains').value!==value)$('httpsDomains').value=value}
+ $('httpsDraftActions').hidden=!httpsDirty||httpsSaving;
  if(!httpsSaving)$('httpsStatus').textContent=httpsDirty?'有未保存修改':info.enabled?'已启用 · '+info.domains.length+' 个域名':'未启用';
  $('httpsDomainSummary').textContent=`解密域名 · ${info.domains.length}`;
  html('httpsDomainChips',info.domains.map(host=>`<span class="https-domain"><button class="link" data-host="${esc(host)}" title="筛选此域名">${esc(host)}</button><button data-https-remove="${esc(host)}" aria-label="移除解密域名 ${esc(host)}" ${httpsSaving?'disabled':''}>×</button></span>`).join('')||'<span class="status">尚未添加解密域名</span>');
@@ -253,8 +310,9 @@ async function saveHTTPSSettings(){
 $('saveHTTPS').onclick=()=>saveHTTPSSettings();
 async function addHTTPSDomain(host){
  if(httpsSaving||!state?.https)return false;
- if(!host?.trim()){toast('请填写解密域名',true);return false}
- $('httpsDomains').value=[...new Set([...httpsDomains(),host.trim().toLowerCase().replace(/\.$/,'')])].join(', ');
+ const hosts=String(host||'').split(/[,，;；\s]+/).map(v=>v.trim().toLowerCase().replace(/\.$/,'')).filter(Boolean);
+ if(!hosts.length){toast('请填写解密域名',true);return false}
+ $('httpsDomains').value=[...new Set([...httpsDomains(),...hosts])].join(', ');
  $('httpsEnabled').checked=true;httpsDirty=true;return saveHTTPSSettings();
 }
 $('addHTTPS').onclick=async()=>{if(await addHTTPSDomain($('httpsAddDomain').value))$('httpsAddDomain').value=''};
@@ -757,12 +815,12 @@ function requestBytes(value){if(typeof value!=='number'||!Number.isFinite(value)
 function requestTime(e){const time=e.started||e.recorded_at;return time?hhmmss(time)+'.'+String(new Date(time).getMilliseconds()).padStart(3,'0'):'—'}
 function requestRow(e,i,traffic,total,options={}){
  const descending=options.desc??requestSortDesc,offset=options.offset||0,sequence=options.sequences?.get(e.id??e.text)??(descending?total-offset-i:offset+i+1),address=requestAddress(e),method=requestMethod(e),code=requestStatusCode(e),protocol=requestProtocolOf(e),status=code||eventLabel(e)||'工具';
- const cls=code>=400||['failed','timeout'].includes(e.status)?'failure':e.status==='active'?'pending':code>0?'success':'';
+ const cls=code>=500?'failure':code>=400?'warning':['failed','timeout'].includes(e.status)?'failure':e.status==='active'?'pending':code>=300?'redirect':code>=200?'success':code>0?'info':'';
  const device=((options.source||displayState)?.devices||[]).find(d=>d.serial===e.serial),client=device?.model?.replaceAll('_',' ')||e.device?.replaceAll('_',' ')||e.serial||'本机';
  const type=requestContentOf(e),typeLabel={json:'JSON',form:'表单',xml:'XML',js:'JS',css:'CSS',graphql:'GraphQL',document:'文档',media:'媒体',other:'其他'}[type]||'—';
  const duration=e.started?(e.duration_ms??(e.ended?Math.max(0,e.ended-e.started):0)):null;
  const key=JSON.stringify([e.serial,e.app==='未识别 App'?'':e.app||'',(e.host||'').toLowerCase().replace(/\.$/,'')]),live=traffic.get(key);
- return `<tr class="${e.status==='active'?'active':['failed','timeout'].includes(e.status)?'failed':''}${requestSelected===e.id?' selected':''}" data-request-row="${e.id||0}" aria-selected="${requestSelected===e.id}"><td title="${esc(eventLabel(e))}"><span class="state-dot ${esc(e.status||'')}"></span></td><td class="row-id" title="请求 ID ${e.id||'—'}">${sequence}</td><td title="${esc(address||e.text)}">${e.id&&e.scope?`<button class="request-url" data-request-detail="${e.id}">${esc(address||e.text)}</button>`:esc(e.text)}</td><td title="${esc(client+' · '+(e.serial||'')+' · '+(e.app||'本机工具'))}">${e.app?`<button class="link client-button" data-app="${esc(e.app==='未识别 App'?'-':e.app)}" data-serial="${esc(e.serial||'')}">${esc(client)}</button>`:esc(client)}</td><td>${method?`<span class="request-pill ${method==='GET'?'success':''}">${esc(method)}</span>`:'—'}</td><td title="${esc(eventLabel(e)+(e.detail?' · '+e.detail:''))}"><span class="request-pill ${cls}">${esc(String(status))}</span></td><td title="${esc(eventTimingText(e))}">${requestTime(e)}</td><td class="metric" title="${e.status==='active'?'已进行':'耗时'}">${duration===null?'—':fmtMs(duration)}</td><td class="metric">${requestBytes(e.request_bytes)}</td><td class="metric">${requestBytes(e.response_bytes)}</td><td class="ssl-cell ${e.decrypted?'decrypted':''}" title="${e.decrypted?'HTTPS 已解密':e.scope==='tunnel'?'加密隧道，无法查看请求正文':e.scope==='log'?'仅从 App 日志获取地址，未采集 TLS 信息':''}">${e.decrypted?'已解密':e.scope==='log'?'未采集':protocol==='https'?sslUnlock(e):protocol==='websocket'?'WebSocket':'—'}</td><td title="${esc(e.content_type||e.request_type||'未采集内容类型；仅可按地址后缀识别')}">${typeLabel}</td><td class="metric" title="同一手机、App、域名近 5 秒下行汇总，不是单条请求吞吐">${live?live.rate.toFixed(1)+' KB/s':'—'}</td><td class="request-tools">${e.id&&e.scope?`<button data-request-detail="${e.id}" aria-label="查看请求 ${e.id} 的详情">详情</button>`:''}<button ${options.history?'data-history-more':'data-event-more'}="${i}" aria-haspopup="true" aria-label="请求 ${e.id||''} 的更多操作">⋯</button></td></tr>`;
+ return `<tr class="${e.status==='active'?'active':code>=400&&code<500?'warning':['failed','timeout'].includes(e.status)?'failed':''}${requestSelected===e.id?' selected':''}${e.scope==='tunnel'&&!e.decrypted?' tunnel':''}" data-request-row="${e.id||0}" aria-selected="${requestSelected===e.id}"><td title="${esc(eventLabel(e))}"><span class="state-dot ${esc(e.status||'')}"></span></td><td class="row-id" title="请求 ID ${e.id||'—'}">${sequence}</td><td title="${esc(address||e.text)}">${e.id&&e.scope?`<button class="request-url" data-request-detail="${e.id}">${esc(address||e.text)}</button>`:esc(e.text)}</td><td title="${esc(client+' · '+(e.serial||'')+' · '+(e.app||'本机工具'))}">${e.app?`<button class="link client-button" data-app="${esc(e.app==='未识别 App'?'-':e.app)}" data-serial="${esc(e.serial||'')}">${esc(client)}</button>`:esc(client)}</td><td>${method?`<span class="request-method method-${esc(method.toLowerCase())}">${esc(method)}</span>`:'—'}</td><td title="${esc(eventLabel(e)+(e.detail?' · '+e.detail:''))}"><span class="request-pill ${cls}">${esc(String(status))}</span></td><td class="time" title="${esc(eventTimingText(e))}">${requestTime(e)}</td><td class="metric" title="${e.status==='active'?'已进行':'耗时'}">${duration===null?'—':fmtMs(duration)}</td><td class="metric">${requestBytes(e.request_bytes)}</td><td class="metric">${requestBytes(e.response_bytes)}</td><td class="ssl-cell ${e.decrypted?'decrypted':''}" title="${e.decrypted?'HTTPS 已解密':e.scope==='tunnel'?'加密隧道，无法查看请求正文':e.scope==='log'?'仅从 App 日志获取地址，未采集 TLS 信息':''}">${e.decrypted?'已解密':e.scope==='log'?'未采集':protocol==='https'?sslUnlock(e):protocol==='websocket'?'WebSocket':'—'}</td><td title="${esc(e.content_type||e.request_type||'未采集内容类型；仅可按地址后缀识别')}">${typeLabel}</td><td class="metric" title="同一手机、App、域名近 5 秒下行汇总，不是单条请求吞吐">${live?live.rate.toFixed(1)+' KB/s':'—'}</td><td class="request-tools">${e.id&&e.scope?`<button data-request-detail="${e.id}" aria-label="查看请求 ${e.id} 的详情">详情</button>`:''}<button ${options.history?'data-history-more':'data-event-more'}="${i}" aria-haspopup="true" aria-label="请求 ${e.id||''} 的更多操作">⋯</button></td></tr>`;
 }
 function sortRequestRows(rows,sort,desc){rows.sort((a,b)=>{const av=requestSortValue(a,sort),bv=requestSortValue(b,sort);const cmp=typeof av==='string'?av.localeCompare(String(bv),undefined,{numeric:true}):av-bv;return (desc?-cmp:cmp)||(b.id||0)-(a.id||0)})}
 function requestTable(rows,{history=false,sort=requestSort,desc=requestSortDesc,total=rows.length,offset=0,empty='没有符合条件的请求',source=displayState,more=0}={}){
@@ -993,6 +1051,14 @@ window.addEventListener('beforeunload',event=>{if(httpsDirty||dirty.blacklist||d
 window.addEventListener('resize',()=>{if(displayState&&view==='monitor')renderLane()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)closeStateStream();else{connectStateStream();refreshConns();refreshLogs()}});
 renderProfiles();selectView(view);connectStateStream();
+(()=>{const tools=$('monitorTools'),summary=$('toolsSummary');
+ const update=()=>{const collapsed=tools.classList.contains('collapsed');$('toggleTools').setAttribute('aria-expanded',String(!collapsed));$('expandTools').setAttribute('aria-expanded',String(!collapsed));
+  const https=$('httpsEnabled').checked?($('httpsStatus').textContent.trim()||'已启用'):'未启用';summary.textContent=collapsed?`作用范围：${$('scope').textContent.trim()||'—'} · HTTPS 解密：${https}`:''};
+ const setCollapsed=collapsed=>{tools.classList.toggle('collapsed',collapsed);store.set('tools_collapsed',collapsed?'1':'0');update()};
+ tools.classList.toggle('collapsed',store.get('tools_collapsed')==='1');update();
+ $('toggleTools').onclick=()=>setCollapsed(true);$('expandTools').onclick=()=>setCollapsed(false);
+ if(typeof MutationObserver!=='undefined'){const watch=new MutationObserver(()=>{if(tools.classList.contains('collapsed'))update()});['scope','httpsStatus'].forEach(id=>watch.observe($(id),{childList:true,characterData:true,subtree:true}));$('httpsEnabled').addEventListener('change',update)}
+})();
 setInterval(()=>{if(!document.hidden)refreshLogs()},1000);
 setInterval(()=>refreshConns(),2000);
 </script>

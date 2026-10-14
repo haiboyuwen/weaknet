@@ -415,3 +415,12 @@ test('设备操作提供 USB 与局域网两种启用方式，局域网设备显
  h.state.adb=true;h.state.devices=[{serial:'A',model:'phone A',state:'device',enabled:true,port:8888,lan:'192.168.1.2:8888'}];
  h.run('renderDevices()');assert.match(h.element('devices').innerHTML,/局域网 192\.168\.1\.2:8888/);
 });
+test('解密域名输入框一次添加多个域名，去重并沿用已有名单',async()=>{
+ const h=setup();h.state.https={enabled:false,domains:['old.example'],fingerprint:'ABCD',expires:'2036-10-12',directory:'/local/weaknet'};h.run('renderHTTPS()');
+ h.setHandler((url,options)=>h.response({...h.state.https,...JSON.parse(options.body)}));
+ assert.equal(await h.run("addHTTPSDomain('API.example, cdn.example；old.example\\nimg.example.')"),true);
+ assert.deepEqual(JSON.parse(h.calls[0].options.body).domains,['old.example','api.example','cdn.example','img.example']);
+ assert.equal(h.element('httpsDraftActions').hidden,true);
+ h.setHandler(()=>({ok:false,text:async()=>JSON.stringify({error:'disk full'})}));assert.equal(await h.run("addHTTPSDomain('new.example')"),false);
+ assert.equal(h.element('httpsDraftActions').hidden,false);
+});
