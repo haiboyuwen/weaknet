@@ -434,3 +434,15 @@ test('工具事件弹窗只列出工具和系统事件，可搜索、复制并�
  h.element('toolEventsSearch').value='弱网';h.run("$('toolEventsSearch').oninput()");assert.equal(h.element('toolEventsCount').textContent,'显示 1 / 2 条');
  let copied='';h.run('navigator.clipboard').writeText=async text=>{copied=text};await h.run("$('copyToolEvents').onclick()");assert.equal(copied,'12:00:00 [SM G991U] 已启用弱网，代理 127.0.0.1:8899');
 });
+
+test('HTTPS 解密快速切换不闪烁控件，保存中再次切换会按最新状态补存',async()=>{
+ const h=setup();h.state.https={enabled:false,domains:['api.example.com'],fingerprint:'AA',expires:'2036-01-01T00:00:00Z',directory:'/tmp/ca'};h.run('renderHTTPS()');
+ const posts=[];let release;h.setHandler((url,options)=>{if(url!=='/api/https')return h.response(h.state);const body=JSON.parse(options.body);posts.push(body);return new Promise(resolve=>{release=()=>resolve(h.response({...h.state.https,enabled:body.enabled}))})});
+ h.element('httpsEnabled').checked=true;const first=h.run("$('httpsEnabled').onchange()");
+ assert.equal(h.element('httpsAddDomain').disabled,false);assert.equal(h.element('addHTTPS').disabled,false);assert.equal(h.element('httpsStatus').textContent,'');
+ h.element('httpsEnabled').checked=false;h.run("$('httpsEnabled').onchange()");assert.equal(posts.length,1);
+ release();await first;await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(posts.length,2);assert.equal(posts[1].enabled,false);assert.equal(h.element('httpsEnabled').checked,false);
+ release();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.run('httpsSaving'),false);assert.equal(h.run('state.https.enabled'),false);assert.equal(h.element('httpsEnabled').checked,false);
+});
