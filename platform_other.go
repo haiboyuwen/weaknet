@@ -18,3 +18,5 @@ func openBrowser(url string) {
 }
 
 func waitBeforeExit() {}
+
+func prepareConsole() {}

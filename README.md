@@ -3,19 +3,33 @@
 电脑上运行的 HTTP/HTTPS 代理，手机通过 USB 把系统代理指向它。参数在网页控制台里拖动即时生效，
 适合在同一网络条件下对比不同 App，支持同时连接多台 Android 手机。单文件，无需安装任何运行环境。
 
+## 安装与更新
+
+有 Node.js 时用 npm 安装（Node 8 及以上均可，npm 只是分发渠道，程序本身不依赖 Node）：
+
+```bash
+npm install -g weaknet
+weaknet            # 启动模拟器，浏览器自动打开控制台
+weaknet version    # 查看版本
+weaknet update     # 更新到最新版本（Windows 上请先退出正在运行的模拟器）
+```
+
+也可以在 [GitHub Releases](https://github.com/haiboyuwen/weaknet/releases) 下载单文件（`.gz` 解压后运行），
+用 `weaknet update` 自更新：下载新版本并按 `SHA256SUMS` 校验后替换，旧版本保留为 `*.old-时间` 备份。
+
 | 系统 | 文件 |
 | --- | --- |
-| Windows（绝大多数电脑） | `weaknet-windows-amd64.exe` |
-| Windows ARM 笔记本 | `weaknet-windows-arm64.exe` |
-| macOS Apple 芯片 | `weaknet-macos-arm64` |
-| macOS Intel | `weaknet-macos-amd64` |
+| Windows（绝大多数电脑） | `weaknet-win32-x64.exe` |
+| Windows ARM 笔记本 | `weaknet-win32-arm64.exe` |
+| macOS Apple 芯片 | `weaknet-darwin-arm64` |
+| macOS Intel | `weaknet-darwin-amd64` |
 
 ## 使用
 
 1. 手机用 USB 连电脑，打开开发者选项里的 USB 调试并允许这台电脑。
 2. 电脑需要能找到 adb：装了 Android Studio / platform-tools 即可；也可以把 `adb.exe`（以及同目录的
    `AdbWinApi.dll`、`AdbWinUsbApi.dll`）和本程序放在同一个文件夹。
-3. 双击运行（macOS 在终端执行 `./weaknet-macos-arm64`，首次可能需要在"系统设置 > 隐私与安全性"里允许）。
+3. 执行 `weaknet`，或双击下载的程序（macOS 在终端执行 `./weaknet-darwin-arm64`，首次可能需要在"系统设置 > 隐私与安全性"里允许）。
    浏览器会自动打开控制台 http://127.0.0.1:8899 。
 4. 在"手机"里对要测试的手机点"启用弱网"，再点"强制重连"，让已打开的 App 改走代理。
 5. 切换档位或拖动参数，对比不同 App 的表现。
@@ -134,7 +148,20 @@ App 的连接先到中转程序，它查出连接所属的 UID，电脑端再用
 
 打开“设置 → HTTPS 解密 · 固定 CA”，下载 CA 证书与 Android 配置。CA 第一次启动时自动生成，后续启动复用，不随程序更新改变。默认目录：macOS `~/Library/Application Support/weaknet`，Windows `%AppData%/weaknet`；可通过 `-data-dir` 指定。`ca.pem` 同时含证书和私钥（权限 0600），备份或迁移时需保留；不要提交到 Git 或发给手机。下载接口只导出公开证书，设置中可核对 SHA-256 指纹和有效期。已有身份损坏或过期时启动会报错，不会自动替换。
 
-Android 调试包配置：
+多台电脑共用一张证书：把某台电脑 CA 目录里的 `ca.pem` 放进源码的 `embedded_ca/` 后再编译（`./build.sh` 会提示是否已内置），程序即内置该 CA，所有电脑运行同一份程序时证书相同，App 的 debug 包只需打包一次。内置 CA 优先于本机目录里的 `ca.pem`，设置中显示「CA 来源：程序内置」；沿用已有证书时已打包的 App 无需改动。`embedded_ca/ca.pem` 已被 `.gitignore` 忽略，不要提交；内置了 CA 的程序同样含有私钥，只发给需要的人。
+
+App 接入有两种方式，共用同一张 CA，工具只保留一份私钥：
+
+- 平台派发的包：App 打包 CA 证书（下方步骤），手机无需安装证书。
+- 其他 App：把“下载 CA 证书”得到的证书安装到手机（系统设置 → 安全 → 加密与凭据 → 安装证书 → CA 证书），该 App 的 debug 包使用“Android 配置 · 信任用户证书”（`debug-overrides` 中 `<certificates src="user" />`）。Android 7 起 App 默认不信任用户证书，无法修改配置的第三方 App 不能用这种方式解密。
+
+CA 管理（设置 → HTTPS 解密 · 固定 CA）：
+
+- 导入：对方 App 已打包他们自己的 CA 时，导入该 CA 的证书和私钥 PEM（可同时选两个文件，支持 RSA / ECDSA），保存为 CA 目录中的 `ca-imported.pem`。导入的 CA 优先于程序内置和本机生成的 CA，这台电脑的解密全部改用它，打包了平台证书的 App 在本机将无法解密，直到“移除导入的 CA”。导入和移除会重连已解密的连接。
+- 导出：下载当前 CA 的证书和私钥（`weaknet_ca_identity.pem`），用于备份或在另一台电脑导入；拿到它的人能解密信任该证书的 App 流量。
+- 导入、导出、移除只接受本机控制台页面的请求：校验 Host（防 DNS 重绑定）、Origin / Sec-Fetch-Site，写操作要求 JSON。
+
+Android 调试包配置（打包证书）：
 
 1. 将下载的公开证书保存为 `app/src/debug/res/raw/weaknet_ca.crt`。
 2. 将下载的配置保存为 `app/src/debug/res/xml/network_security_config.xml`。已有网络安全配置时，将其中的 `debug-overrides` 合并进去，保留原有规则。
@@ -207,5 +234,29 @@ curl -X POST 127.0.0.1:8899/api/device/<序列号>/on               # on | off |
 ```bash
 go test -race ./...   # 单元测试；有 Node 时还会运行页面交互回归测试
 node --test tests/page.test.cjs # 只运行前端交互回归，不依赖浏览器、外网和手机
-./build.sh            # 交叉编译到 dist/
+./build.sh            # 交叉编译全部平台到 dist/，文件名与 Release、npm 一致
 ```
+
+`relaybin/` 里的手机端中转程序由 `build.sh` / `scripts/build-release.sh` 构建时生成，不提交到仓库；直接
+`go build` / `go run .` 时没有中转程序，启用弱网会退回直连模式（无法按 App 分类）。
+
+### 发布
+
+推送 `vX.Y.Z` 标签触发 GitHub Actions（`.github/workflows/release.yml`）：测试 → 4 个平台并行编译 →
+创建 GitHub Release（`.gz` 与 `SHA256SUMS`）并发布 npm 包 `weaknet`，版本号取自标签。npm 账号、Token、
+Trusted Publishing 的一次性准备和常见问题见 [docs/npm-release.md](docs/npm-release.md)。
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+仓库 Secret：
+
+- `NPM_TOKEN`：npm 的 Granular Access Token（对 `weaknet` 有发布权限）。首次发布必需；之后可在 npmjs.com
+  为该包配置 Trusted Publishing（仓库 `haiboyuwen/weaknet`、工作流 `release.yml`），再删除这个 Secret。
+- `WEAKNET_CA_PEM`（可选，慎用）：内置共享 CA。Release 和 npm 包是公开的，内置后任何人都能从程序中取出私钥；
+  不设置时每台电脑各自生成 CA，团队可在「设置 → 导入 CA」导入同一张共享 CA。
+
+## 许可证
+
+MIT，见 [LICENSE](LICENSE)。程序内嵌的第三方前端库声明见 `web_assets/NOTICE.txt`。

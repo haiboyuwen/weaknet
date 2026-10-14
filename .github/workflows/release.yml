@@ -1,0 +1,175 @@
+name: Release and Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Validate release tag
+        id: version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tags must look like v1.0.0: $TAG_NAME"
+            exit 1
+          fi
+          echo "version=$TAG_NAME" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Verify
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          # 用较新的 Go 编译：Go 1.22 生成的 macOS 程序缺少 LC_UUID，新版 macOS 拒绝运行。
+          go-version: '1.26.x'
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Vet and test
+        run: |
+          go vet ./...
+          go test ./...
+      - name: Page tests
+        run: node --test tests/page.test.cjs
+
+  build:
+    name: Build ${{ matrix.asset }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: darwin, goarch: amd64, asset: weaknet-darwin-amd64 }
+          - { goos: darwin, goarch: arm64, asset: weaknet-darwin-arm64 }
+          - { goos: windows, goarch: amd64, asset: weaknet-win32-x64.exe }
+          - { goos: windows, goarch: arm64, asset: weaknet-win32-arm64.exe }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          # 用较新的 Go 编译：Go 1.22 生成的 macOS 程序缺少 LC_UUID，新版 macOS 拒绝运行。
+          go-version: '1.26.x'
+      # 可选：仓库 Secret WEAKNET_CA_PEM 存在时内置共享 CA。Release 和 npm 包是公开的，
+      # 内置后任何人都能从程序中取出私钥；不设置时每台电脑各自生成 CA，可在设置中导入共享 CA。
+      - name: Embed shared CA
+        env:
+          WEAKNET_CA_PEM: ${{ secrets.WEAKNET_CA_PEM }}
+        run: |
+          if [ -n "$WEAKNET_CA_PEM" ]; then
+            printf '%s\n' "$WEAKNET_CA_PEM" > embedded_ca/ca.pem
+          fi
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          OUTPUT: dist/${{ matrix.asset }}
+        run: bash scripts/build-release.sh
+      # GitHub Release 提供 gzip 压缩版本，weaknet update 下载 <asset>.gz 并按 SHA256SUMS 校验。
+      - name: Compress binary
+        run: gzip -9 -n "dist/${{ matrix.asset }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+
+  github-release:
+    name: GitHub release
+    needs: [prepare, verify, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: weaknet-*
+          path: dist
+          merge-multiple: true
+      - name: Verify assets and create checksums
+        run: |
+          for asset in weaknet-darwin-amd64 weaknet-darwin-arm64 weaknet-win32-x64.exe weaknet-win32-arm64.exe; do
+            gzip -t "dist/$asset.gz"
+          done
+          (cd dist && sha256sum weaknet-*.gz > SHA256SUMS)
+          ls -lh dist
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          cp LICENSE dist/LICENSE.txt
+          cp web_assets/NOTICE.txt dist/THIRD_PARTY_NOTICES.txt
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            # 重新运行时刷新已有 Release 的文件
+            gh release upload "$VERSION" dist/* --clobber
+          else
+            gh release create "$VERSION" dist/* --verify-tag --generate-notes
+          fi
+
+  # npm 包自带各平台原始二进制（bin/wrapper.js 直接运行），不依赖 GitHub Release，与其并行发布。
+  npm:
+    name: Publish npm
+    needs: [prepare, verify, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: weaknet-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Prepare npm assets
+        run: |
+          for asset in weaknet-darwin-amd64 weaknet-darwin-arm64 weaknet-win32-x64.exe weaknet-win32-arm64.exe; do
+            gzip -dc "dist/$asset.gz" > "bin/$asset"
+            test -s "bin/$asset"
+          done
+          chmod +x bin/weaknet-* bin/wrapper.js
+      - name: Sync version from tag
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+      - name: Skip if already published
+        id: published
+        run: |
+          if npm view "weaknet@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+          fi
+      # 首次发布需要仓库 Secret NPM_TOKEN；在 npmjs.com 为该包配置 Trusted Publishing 后可删除它，改用 OIDC。
+      - name: Publish
+        if: steps.published.outputs.exists != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public

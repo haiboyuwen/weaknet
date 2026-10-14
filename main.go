@@ -23,7 +23,15 @@ import (
 
 var version = "dev"
 
+var console *asyncLog
+
 func main() {
+	if runCommand(os.Args[1:]) {
+		return
+	}
+	prepareConsole()
+	console = newAsyncLog(os.Stderr, 4096)
+	log.SetOutput(console)
 	log.SetFlags(log.Ltime)
 	port := flag.Int("port", 8888, "代理起始端口，每台手机依次占用一个")
 	uiPort := flag.Int("ui-port", 8899, "控制台端口")
@@ -132,10 +140,14 @@ func main() {
 	log.Println("退出中，恢复已启用弱网的手机...")
 	app.shutdown()
 	log.Println("已退出")
+	console.flush(2 * time.Second)
 }
 
 func fatal(format string, args ...any) {
 	log.Printf(format, args...)
+	if console != nil {
+		console.flush(2 * time.Second)
+	}
 	waitBeforeExit()
 	os.Exit(1)
 }

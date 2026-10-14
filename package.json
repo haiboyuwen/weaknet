@@ -1,0 +1,34 @@
+{
+  "name": "weaknet",
+  "version": "1.0.0",
+  "description": "Android 弱网模拟器：HTTP/HTTPS 代理与网页控制台，支持多台手机、按 App 分流和 HTTPS 解密。源码中的版本号仅为占位，发布流程会按 git 标签改写。",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haiboyuwen/weaknet.git"
+  },
+  "bin": {
+    "weaknet": "bin/wrapper.js"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE",
+    "web_assets/NOTICE.txt",
+    "web_assets/LICENSE-*.txt"
+  ],
+  "engines": {
+    "node": ">=8"
+  },
+  "os": [
+    "darwin",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

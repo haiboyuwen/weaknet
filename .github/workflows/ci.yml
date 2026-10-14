@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          # 用较新的 Go 编译：Go 1.22 生成的 macOS 程序缺少 LC_UUID，新版 macOS 拒绝运行。
+          go-version: '1.26.x'
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Vet and test
+        run: |
+          go vet ./...
+          go test ./...
+      - name: Page tests
+        run: node --test tests/page.test.cjs
+      - name: Cross-compile Windows
+        run: GOOS=windows GOARCH=amd64 go vet .

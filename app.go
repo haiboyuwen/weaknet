@@ -605,6 +605,13 @@ type State struct {
 	Events       []string            `json:"events"`
 	EventSeq     uint64              `json:"event_seq"`
 	EventDetails []EventView         `json:"event_details"`
+	// 推送流只发增量：本连接新增或内容变化的事件，最新在前；页面按 ID 合并，
+	// 并丢弃 ID 小于 EventKeepFrom 的事件（已淘汰或已清除）。完整列表请用 /api/state。
+	EventDelta    bool        `json:"event_delta,omitempty"`
+	EventReset    bool        `json:"event_reset,omitempty"`
+	EventPartial  bool        `json:"event_partial,omitempty"`
+	EventKeepFrom uint64      `json:"event_keep_from,omitempty"`
+	EventUpserts  []EventView `json:"event_upserts,omitempty"`
 }
 
 func (a *App) state(appFilter string) State {

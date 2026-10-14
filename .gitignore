@@ -6,3 +6,8 @@ __pycache__/
 *.py[cod]
 *.test
 coverage.out
+embedded_ca/ca.pem
+relaybin/wnrelay-*
+bin/weaknet-*
+node_modules/
+*.tgz

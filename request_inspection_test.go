@@ -23,7 +23,7 @@ func inspectionClient(t *testing.T, handler http.HandlerFunc) (*App, *http.Clien
 	m.upstreamRoots = x509.NewCertPool()
 	m.upstreamRoots.AddCert(srv.Certificate())
 	roots := x509.NewCertPool()
-	roots.AddCert(m.root)
+	roots.AddCert(m.ca.root)
 	lane := startLane(t, app, "phone")
 	client, tr := tlsProxyClient(lane, roots)
 	t.Cleanup(tr.CloseIdleConnections)

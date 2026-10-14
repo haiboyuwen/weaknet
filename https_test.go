@@ -3,14 +3,18 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +27,40 @@ import (
 	"testing"
 	"time"
 )
+
+// 测试不依赖开发者本地放入 embedded_ca/ 的共享 CA；需要内置 CA 的测试自行设置。
+func init() { embeddedCA = nil }
+
+func TestEmbeddedCASharedAcrossMachines(t *testing.T) {
+	source, err := loadLocalCA(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	embeddedCA = source
+	defer func() { embeddedCA = nil }()
+	first, second := t.TempDir(), t.TempDir()
+	a, err := openHTTPSManager(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := openHTTPSManager(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.status().Fingerprint != b.status().Fingerprint || a.status().Source != "程序内置" {
+		t.Fatalf("machines should share the embedded CA: %+v %+v", a.status(), b.status())
+	}
+	if _, err := os.Stat(filepath.Join(first, "ca.pem")); !os.IsNotExist(err) {
+		t.Fatal("embedded CA must not generate or write a local identity")
+	}
+	if err = a.update(HTTPSSettings{Enabled: true, Domains: []string{"api.example.com"}}); err != nil {
+		t.Fatal(err)
+	}
+	embeddedCA = []byte("broken")
+	if _, err = openHTTPSManager(t.TempDir()); err == nil || !strings.Contains(err.Error(), "程序内置的 CA") {
+		t.Fatalf("invalid embedded CA should fail clearly, got %v", err)
+	}
+}
 
 func testHTTPS(t *testing.T, app *App) *HTTPSManager {
 	t.Helper()
@@ -174,7 +212,7 @@ func TestHTTPSDecryptionKeepAliveAndStatuses(t *testing.T) {
 			m.upstreamRoots = x509.NewCertPool()
 			m.upstreamRoots.AddCert(srv.Certificate())
 			roots := x509.NewCertPool()
-			roots.AddCert(m.root)
+			roots.AddCert(m.ca.root)
 			lane := startLane(t, app, "phone")
 			client, tr := tlsProxyClient(lane, roots)
 			defer tr.CloseIdleConnections()
@@ -188,7 +226,7 @@ func TestHTTPSDecryptionKeepAliveAndStatuses(t *testing.T) {
 				if err != nil || string(body) != path {
 					t.Fatalf("body %q %v", body, err)
 				}
-				if resp.TLS.PeerCertificates[0].Issuer.CommonName != m.root.Subject.CommonName {
+				if resp.TLS.PeerCertificates[0].Issuer.CommonName != m.ca.root.Subject.CommonName {
 					t.Fatal("not decrypted")
 				}
 				status := "complete"
@@ -228,7 +266,7 @@ func TestHTTPSUpstreamValidationAndClientTrust(t *testing.T) {
 			defer srv.Close()
 			roots := x509.NewCertPool()
 			if trustClient {
-				roots.AddCert(m.root)
+				roots.AddCert(m.ca.root)
 			}
 			lane := startLane(t, app, "phone")
 			client, tr := tlsProxyClient(lane, roots)
@@ -283,7 +321,7 @@ func TestHTTPSShapingAndReset(t *testing.T) {
 	m.upstreamRoots = x509.NewCertPool()
 	m.upstreamRoots.AddCert(srv.Certificate())
 	roots := x509.NewCertPool()
-	roots.AddCert(m.root)
+	roots.AddCert(m.ca.root)
 	lane := startLane(t, app, "phone")
 	client, tr := tlsProxyClient(lane, roots)
 	defer tr.CloseIdleConnections()
@@ -347,7 +385,7 @@ func TestHTTPSWebSocketUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	roots := x509.NewCertPool()
-	roots.AddCert(m.root)
+	roots.AddCert(m.ca.root)
 	secure := tls.Client(raw, &tls.Config{RootCAs: roots, ServerName: "127.0.0.1"})
 	defer secure.Close()
 	fmt.Fprintf(secure, "GET /socket HTTP/1.1\r\nHost: %s\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n", target)
@@ -387,7 +425,7 @@ func TestHTTPSHTTP2UpstreamAndTruncatedResponse(t *testing.T) {
 	m.upstreamRoots = x509.NewCertPool()
 	m.upstreamRoots.AddCert(srv.Certificate())
 	roots := x509.NewCertPool()
-	roots.AddCert(m.root)
+	roots.AddCert(m.ca.root)
 	lane := startLane(t, app, "phone")
 	client, tr := tlsProxyClient(lane, roots)
 	tr.DisableCompression = true
@@ -427,7 +465,7 @@ func TestHTTPSRejectsDifferentHost(t *testing.T) {
 	m.upstreamRoots = x509.NewCertPool()
 	m.upstreamRoots.AddCert(srv.Certificate())
 	roots := x509.NewCertPool()
-	roots.AddCert(m.root)
+	roots.AddCert(m.ca.root)
 	lane := startLane(t, app, "phone")
 	client, tr := tlsProxyClient(lane, roots)
 	defer tr.CloseIdleConnections()
@@ -441,5 +479,116 @@ func TestHTTPSRejectsDifferentHost(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != 421 {
 		t.Fatalf("mismatched Host permitted: %d", resp.StatusCode)
+	}
+}
+
+func rsaCAIdentity(t *testing.T) []byte {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{SerialNumber: big.NewInt(7), Subject: pkix.Name{CommonName: "Partner Debug CA"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().AddDate(1, 0, 0), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return append(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})...)
+}
+
+func TestImportExportAndRemoveCA(t *testing.T) {
+	dir := t.TempDir()
+	m, err := openHTTPSManager(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := m.status()
+	if err = m.importCA([]byte("broken")); err == nil || m.status().Fingerprint != original.Fingerprint {
+		t.Fatal("invalid import must fail and keep the current CA")
+	}
+	if err = m.importCA(rsaCAIdentity(t)); err != nil {
+		t.Fatal(err)
+	}
+	imported := m.status()
+	if imported.Source != caSourceImported || imported.Subject != "Partner Debug CA" || imported.Fingerprint == original.Fingerprint {
+		t.Fatalf("import not applied: %+v", imported)
+	}
+	leaf, err := m.certificate("api.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = leaf.Leaf.CheckSignatureFrom(m.ca.root); err != nil || m.ca.root.Subject.CommonName != "Partner Debug CA" {
+		t.Fatalf("leaf must be issued by the imported CA: %v", err)
+	}
+	exported, err := m.identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := openHTTPSManager(dir)
+	if err != nil || again.status().Fingerprint != imported.Fingerprint {
+		t.Fatalf("imported CA must persist across restarts: %v", err)
+	}
+	other, err := openHTTPSManager(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = other.importCA(exported); err != nil || other.status().Fingerprint != imported.Fingerprint {
+		t.Fatalf("exported identity must import elsewhere: %v", err)
+	}
+	if err = m.removeImportedCA(); err != nil {
+		t.Fatal(err)
+	}
+	if st := m.status(); st.Source != caSourceLocal || st.Fingerprint != original.Fingerprint {
+		t.Fatalf("remove should restore the original CA: %+v", st)
+	}
+	if _, err = os.Stat(filepath.Join(dir, importedCAFile)); !os.IsNotExist(err) {
+		t.Fatal("imported identity file should be removed")
+	}
+	if err = m.removeImportedCA(); err == nil {
+		t.Fatal("removing without an imported CA should fail")
+	}
+}
+
+func TestCAEndpointsOnlyServeLocalConsole(t *testing.T) {
+	app := newTestApp(t, "unlimited")
+	var err error
+	if app.https, err = openHTTPSManager(t.TempDir()); err != nil {
+		t.Fatal(err)
+	}
+	routes := app.routes()
+	do := func(method, target, host string, header map[string]string, body string) int {
+		r := httptest.NewRequest(method, target, strings.NewReader(body))
+		r.Host = host
+		for k, v := range header {
+			r.Header.Set(k, v)
+		}
+		w := httptest.NewRecorder()
+		routes.ServeHTTP(w, r)
+		return w.Code
+	}
+	if code := do("GET", "/api/https/ca/identity.pem", "evil.example:8899", nil, ""); code != 403 {
+		t.Fatalf("DNS rebinding host should be rejected, got %d", code)
+	}
+	if code := do("GET", "/api/https/ca/identity.pem", "127.0.0.1:8899", map[string]string{"Sec-Fetch-Site": "cross-site"}, ""); code != 403 {
+		t.Fatalf("cross-site export should be rejected, got %d", code)
+	}
+	if code := do("GET", "/api/https/ca/identity.pem", "127.0.0.1:8899", map[string]string{"Sec-Fetch-Site": "same-origin"}, ""); code != 200 {
+		t.Fatalf("local export should work, got %d", code)
+	}
+	body, _ := json.Marshal(map[string]string{"pem": string(rsaCAIdentity(t))})
+	if code := do("POST", "/api/https/ca/import", "127.0.0.1:8899", map[string]string{"Content-Type": "text/plain"}, string(body)); code != 403 {
+		t.Fatalf("non-JSON import should be rejected, got %d", code)
+	}
+	if code := do("POST", "/api/https/ca/import", "127.0.0.1:8899", map[string]string{"Content-Type": "application/json", "Origin": "http://evil.example"}, string(body)); code != 403 {
+		t.Fatalf("foreign origin import should be rejected, got %d", code)
+	}
+	if app.https.status().Source == caSourceImported {
+		t.Fatal("rejected requests must not change the CA")
+	}
+	if code := do("POST", "/api/https/ca/import", "127.0.0.1:8899", map[string]string{"Content-Type": "application/json", "Origin": "http://127.0.0.1:8899"}, string(body)); code != 200 || app.https.status().Source != caSourceImported {
+		t.Fatalf("local import should work, got %d", code)
+	}
+	if code := do("POST", "/api/https/ca/reset", "localhost:8899", map[string]string{"Content-Type": "application/json"}, "{}"); code != 200 || app.https.status().Source != caSourceLocal {
+		t.Fatalf("local reset should work, got %d", code)
 	}
 }

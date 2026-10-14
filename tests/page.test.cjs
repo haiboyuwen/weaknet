@@ -397,9 +397,9 @@ test('清除数据调用服务端清空接口，并重置实时列表的本地�
 });
 test('实时列表分批渲染，避免一次渲染上万行',()=>{
  const h=setup(),now=Date.now();h.state.event_details=Array.from({length:1200},(_,i)=>({id:1200-i,recorded_at:now,scope:'http',text:'12:00:00 r'+i,status:'complete'}));
- h.run('renderEvents()');assert.equal(h.run('eventMenuRows.length'),1200);assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,500);
- assert.match(h.element('events').innerHTML,/还有 700 条未渲染/);assert.match(h.element('events').innerHTML,/<td[^>]*>\s*<\/td>|1200/);
- h.run('requestRenderLimit+=requestRenderStep;renderEvents()');assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,1000);
+ h.run('renderEvents()');assert.equal(h.run('eventMenuRows.length'),1200);assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,200);
+ assert.match(h.element('events').innerHTML,/还有 1000 条未渲染/);assert.match(h.element('events').innerHTML,/<td[^>]*>\s*<\/td>|1200/);
+ h.run('requestRenderLimit+=requestRenderStep;renderEvents()');assert.equal((h.element('events').innerHTML.match(/data-request-row=/g)||[]).length,400);
 });
 test('点击 SSL 列的「加密」可添加该域名并开启解密，已在解密列表的域名不再可点',async()=>{
  const h=setup();h.state.https={enabled:false,domains:[]};
@@ -445,4 +445,46 @@ test('HTTPS 解密快速切换不闪烁控件，保存中再次切换会按最�
  assert.equal(posts.length,2);assert.equal(posts[1].enabled,false);assert.equal(h.element('httpsEnabled').checked,false);
  release();await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
  assert.equal(h.run('httpsSaving'),false);assert.equal(h.run('state.https.enabled'),false);assert.equal(h.element('httpsEnabled').checked,false);
+});
+
+test('导入 CA 需同时包含证书和私钥，确认后提交并显示导入来源',async()=>{
+ const h=setup();h.state.https={enabled:false,domains:[],fingerprint:'AA',expires:'2036-01-01T00:00:00Z',directory:'/tmp/ca',source:'本机生成',subject:'Weaknet Local Debug CA'};h.run('renderHTTPS()');
+ assert.equal(h.element('resetCA').hidden,true);assert.match(h.element('httpsIdentity').innerHTML,/本机生成/);
+ const cert={text:async()=>'-----BEGIN CERTIFICATE-----\nAA\n-----END CERTIFICATE-----'},key={text:async()=>'-----BEGIN RSA PRIVATE KEY-----\nBB\n-----END RSA PRIVATE KEY-----'};
+ h.element('importCAFile').files=[cert];await h.run("$('importCAFile').onchange()");
+ assert.equal(h.calls.some(c=>c.url==='/api/https/ca/import'),false);
+ h.setHandler(url=>h.response(url==='/api/https/ca/import'?{...h.state.https,source:'已导入',subject:'Partner <CA>'}:h.state));
+ h.element('importCAFile').files=[cert,key];const pending=h.run("$('importCAFile').onchange()");
+ await new Promise(resolve=>setImmediate(resolve));h.run('actionResolve(true)');await pending;
+ const post=h.calls.find(c=>c.url==='/api/https/ca/import');assert.match(JSON.parse(post.options.body).pem,/CERTIFICATE[\s\S]*RSA PRIVATE KEY/);
+ assert.equal(h.element('resetCA').hidden,false);assert.match(h.element('httpsIdentity').innerHTML,/已导入（Partner &lt;CA&gt;）/);
+});
+
+test('推送增量按 ID 合并：分批收齐后才替换列表，变化覆盖旧值，淘汰和清空按 keep_from 丢弃',()=>{
+ const h=setup();h.run("view='monitor';connectStateStream()");const stream=h.streams[0];
+ const ev=(id,extra={})=>({id,scope:'http',status:'complete',text:'12:00:00 req '+id,...extra});
+ const base={...h.state,event_details:null,events:null,event_delta:true};
+ stream.emit('state',{...base,revision:1,event_seq:4,event_reset:true,event_partial:true,event_keep_from:1,event_upserts:[ev(4),ev(3)]});
+ assert.equal(h.run('state.event_details.length'),0);
+ stream.emit('events',{revision:1,event_seq:4,event_delta:true,event_keep_from:1,event_upserts:[ev(2),ev(1)]});
+ assert.deepEqual(JSON.parse(h.run('JSON.stringify(state.event_details.map(e=>e.id))')),[4,3,2,1]);assert.equal(h.run('state.events[0]'),'12:00:00 req 4');
+ stream.emit('state',{...base,revision:2,event_seq:5,event_keep_from:2,event_upserts:[ev(5,{status:'active',started:Date.now()-1000}),ev(3,{status:'failed'})]});
+ assert.deepEqual(JSON.parse(h.run('JSON.stringify(state.event_details.map(e=>e.id))')),[5,4,3,2]);
+ assert.equal(h.run('state.event_details.find(e=>e.id===3).status'),'failed');assert.ok(h.run('state.event_details[0].duration_ms')>=1000);
+ stream.emit('state',{...base,revision:3,event_seq:5,event_reset:true,event_partial:true,event_keep_from:5,event_upserts:[ev(5)]});
+ assert.equal(h.run('state.event_details.length'),4);
+ stream.emit('events',{revision:3,event_seq:5,event_delta:true,event_keep_from:5,event_upserts:[]});
+ assert.deepEqual(JSON.parse(h.run('JSON.stringify(state.event_details.map(e=>e.id))')),[5]);
+ stream.emit('state',{...base,revision:4,event_seq:5,event_keep_from:6,event_upserts:[]});assert.equal(h.run('state.event_details.length'),0);
+});
+
+test('推送渲染较重时按耗时节流，合并为一次延后渲染；轻量渲染立即执行',()=>{
+ const h=setup();h.run("view='monitor';connectStateStream()");const stream=h.streams[0];
+ const row=id=>({id,scope:'http',status:'complete',text:'12:00:00 r'+id});
+ stream.emit('state',{...h.state,revision:1,event_details:[row(1)]});assert.equal(h.run('eventMenuRows.length'),1);
+ stream.emit('state',{...h.state,revision:2,event_details:[row(2),row(1)]});assert.equal(h.run('eventMenuRows.length'),2);
+ h.run('lastRenderCost=100;lastRenderAt=Date.now()');const before=h.timers.size;
+ stream.emit('state',{...h.state,revision:3,event_details:[row(3),row(2),row(1)]});stream.emit('state',{...h.state,revision:4,event_details:[row(4),row(3),row(2),row(1)]});
+ assert.equal(h.run('state.revision'),4);assert.equal(h.run('eventMenuRows.length'),2);assert.equal(h.timers.size,before+1);
+ const [key,fn]=[...h.timers].at(-1);h.timers.delete(key);fn();assert.equal(h.run('eventMenuRows.length'),4);
 });

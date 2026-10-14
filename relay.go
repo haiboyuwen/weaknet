@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// relaybin 由 build.sh 生成：wnrelay-arm64 / wnrelay-arm / wnrelay-amd64
+// relaybin 由 build.sh / scripts/build-release.sh 生成，不提交到仓库：wnrelay-arm64 / wnrelay-arm / wnrelay-amd64
 //
 //go:embed all:relaybin
 var relayFS embed.FS
@@ -46,8 +46,11 @@ func (a *App) startRelay(serial string, lane *Lane) error {
 		return fmt.Errorf("读取 CPU 架构失败：%v", err)
 	}
 	bin, arch := relayBinary(strings.TrimSpace(abi))
+	if bin == nil && arch != "" {
+		return fmt.Errorf("此版本未内置 %s 中转程序（请用 build.sh 构建）", arch)
+	}
 	if bin == nil {
-		return fmt.Errorf("没有适用于 %s(%s) 的中转程序", abi, arch)
+		return fmt.Errorf("没有适用于 %s 的中转程序", abi)
 	}
 	tmp, err := os.CreateTemp("", "wnrelay-*")
 	if err != nil {
